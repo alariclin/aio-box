@@ -1,11 +1,5 @@
 # Sing-box- auto
 
-- [基于 Deterministic Deep Reasoning (DDR) 逻辑构建的物理级防弹脚本]
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-
-
 Sing-box 2026 终极一键部署脚本。
 
 ---
