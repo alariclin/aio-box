@@ -35,11 +35,11 @@ setup_shortcut() {
 }
 
 check_env() {
-    if ! command -v jq >/dev/null || ! command -v unzip >/dev/null || ! command -v vnstat >/dev/null; then
+    if ! command -v jq >/dev/null || ! command -v unzip >/dev/null || ! command -v iptables >/dev/null; then
         echo -e "${YELLOW}[*] 正在同步系统依赖环境... / Syncing dependencies...${NC}"
         apt-get update -y -q || yum makecache -y -q
-        apt-get install -y -q wget curl jq openssl uuid-runtime cron fail2ban python3 bc unzip vnstat || \
-        yum install -y -q wget curl jq openssl uuid-runtime cronie fail2ban python3 bc unzip vnstat
+        apt-get install -y -q wget curl jq openssl uuid-runtime cron fail2ban python3 bc unzip vnstat iptables || \
+        yum install -y -q wget curl jq openssl uuid-runtime cronie fail2ban python3 bc unzip vnstat iptables
         systemctl enable cron vnstat 2>/dev/null || systemctl enable cronie vnstat 2>/dev/null
         systemctl start cron vnstat 2>/dev/null || systemctl start cronie vnstat 2>/dev/null
     fi
@@ -71,7 +71,8 @@ fetch_core() {
     echo -e "${RED}[!] 下载彻底失败 / Fetch failed.${NC}"; exit 1
 }
 
-calculate_sni() {
+# 部署前向导：动态获取 SNI 与端口
+pre_install_setup() {
     ASN_ORG=$(curl -sm3 "ipinfo.io/org" || echo "GENERIC")
     ASN_UPPER=$(echo "$ASN_ORG" | tr '[:lower:]' '[:upper:]')
     if [[ "$ASN_UPPER" == *"GOOGLE"* ]]; then AUTO_REALITY="storage.googleapis.com"
@@ -80,9 +81,18 @@ calculate_sni() {
     else AUTO_REALITY="www.microsoft.com"; fi
 
     echo -e "\n${CYAN}======================================================${NC}"
-    echo -e "${BOLD}系统推荐防封 SNI / Recommended SNI: ${GREEN}$AUTO_REALITY${NC}"
-    read -ep "请输入自定义 SNI (直接回车则使用推荐值) / Enter custom SNI (Press Enter for default): " INPUT_SNI
+    echo -e "${BOLD}1. 伪装域名设置 / SNI Setup${NC}"
+    echo -e "   系统推荐防封 SNI: ${GREEN}$AUTO_REALITY${NC}"
+    echo -e "   (支持输入您托管在 Cloudflare 等平台的自有域名 / Supports your own domain)"
+    read -ep "   请输入自定义 SNI (直接回车默认推荐值): " INPUT_SNI
     REALITY_SNI=${INPUT_SNI:-$AUTO_REALITY}
+
+    echo -e "\n${BOLD}2. 物理端口设置 / Port Setup${NC}"
+    read -ep "   请输入 VLESS/Hy2 主监听端口 (直接回车默认 443): " INPUT_PORT
+    MAIN_PORT=${INPUT_PORT:-443}
+
+    read -ep "   请输入 Shadowsocks 备用端口 (直接回车默认 2053): " INPUT_SS_PORT
+    SS_PORT=${INPUT_SS_PORT:-2053}
     echo -e "${CYAN}======================================================${NC}\n"
     return 0
 }
@@ -91,6 +101,8 @@ calculate_sni() {
 deploy_xray() {
     local MODE=$1
     clear; echo -e "${BOLD}${GREEN} 部署 Xray-core [$MODE] ${NC}"; check_env
+    pre_install_setup
+    
     systemctl disable --now sing-box 2>/dev/null || true
     systemctl stop xray 2>/dev/null || true
     
@@ -108,15 +120,15 @@ deploy_xray() {
     PK=$(echo "$KEYS" | grep -i "Private" | awk '{print $NF}'); PBK=$(echo "$KEYS" | grep -i "Public" | awk '{print $NF}')
     if [[ -z "$PK" ]]; then echo -e "${RED}[!] 核心不兼容 / Core incompatible.${NC}"; exit 1; fi
 
-    calculate_sni; UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4)
+    UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4)
     SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r'); HY2_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9'); HY2_OBFS=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9')
+    
     mkdir -p /usr/local/etc/xray; openssl ecparam -genkey -name prime256v1 -out /usr/local/etc/xray/hy2.key 2>/dev/null
-    openssl req -new -x509 -days 36500 -key /usr/local/etc/xray/hy2.key -out /usr/local/etc/xray/hy2.crt -subj "/CN=www.microsoft.com" 2>/dev/null
+    openssl req -new -x509 -days 36500 -key /usr/local/etc/xray/hy2.key -out /usr/local/etc/xray/hy2.crt -subj "/CN=${REALITY_SNI}" 2>/dev/null
 
-    # VLESS 与 HY2 完美共用物理端口 443 (底层区分 TCP 与 UDP)
-    JSON_VLESS='{ "port": 443, "protocol": "vless", "settings": { "clients": [{"id": "'$UUID'", "flow": "xtls-rprx-vision"}], "decryption": "none" }, "streamSettings": { "network": "tcp", "security": "reality", "realitySettings": { "dest": "'$REALITY_SNI':443", "serverNames": ["'$REALITY_SNI'"], "privateKey": "'$PK'", "shortIds": ["'$SHORT_ID'"] } } }'
-    JSON_HY2='{ "port": 443, "protocol": "hysteria", "tag": "hy2-in", "settings": { "clients": [{"password": "'$HY2_PASS'"}] }, "streamSettings": { "security": "tls", "tlsSettings": { "alpn": ["h3"], "certificates": [{ "certificateFile": "/usr/local/etc/xray/hy2.crt", "keyFile": "/usr/local/etc/xray/hy2.key" }] }, "hysteriaSettings": { "version": 2, "obfs": "salamander", "obfsPassword": "'$HY2_OBFS'" } } }'
-    JSON_SS='{ "port": 2053, "protocol": "shadowsocks", "settings": { "method": "2022-blake3-aes-128-gcm", "password": "'$SS_PASS'", "network": "tcp,udp" } }'
+    JSON_VLESS='{ "port": '$MAIN_PORT', "protocol": "vless", "settings": { "clients": [{"id": "'$UUID'", "flow": "xtls-rprx-vision"}], "decryption": "none" }, "streamSettings": { "network": "tcp", "security": "reality", "realitySettings": { "dest": "'$REALITY_SNI':443", "serverNames": ["'$REALITY_SNI'"], "privateKey": "'$PK'", "shortIds": ["'$SHORT_ID'"] } } }'
+    JSON_HY2='{ "port": '$MAIN_PORT', "protocol": "hysteria", "tag": "hy2-in", "settings": { "clients": [{"password": "'$HY2_PASS'"}] }, "streamSettings": { "security": "tls", "tlsSettings": { "alpn": ["h3"], "certificates": [{ "certificateFile": "/usr/local/etc/xray/hy2.crt", "keyFile": "/usr/local/etc/xray/hy2.key" }] }, "hysteriaSettings": { "version": 2, "obfs": "salamander", "obfsPassword": "'$HY2_OBFS'" } } }'
+    JSON_SS='{ "port": '$SS_PORT', "protocol": "shadowsocks", "settings": { "method": "2022-blake3-aes-128-gcm", "password": "'$SS_PASS'", "network": "tcp,udp" } }'
 
     case $MODE in
         "VLESS") INBOUNDS="[$JSON_VLESS]" ;;
@@ -128,11 +140,21 @@ deploy_xray() {
     cat > /usr/local/etc/xray/config.json << EOF
 { "log": { "loglevel": "warning" }, "inbounds": $INBOUNDS, "outbounds": [{ "protocol": "freedom" }] }
 EOF
+
+    IPT=$(command -v iptables || echo "/sbin/iptables")
+    IP6=$(command -v ip6tables || echo "/sbin/ip6tables")
+
     cat > /etc/systemd/system/xray.service << SVC_EOF
 [Unit]
 After=network.target
 [Service]
+ExecStartPre=-$IPT -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IP6 -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IPT -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IP6 -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
 ExecStart=/usr/local/bin/xray run -config /usr/local/etc/xray/config.json
+ExecStopPost=-$IPT -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStopPost=-$IP6 -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
 Restart=always
 LimitNOFILE=1048576
 LimitNPROC=infinity
@@ -144,9 +166,7 @@ SVC_EOF
     sleep 1
     if ! systemctl is-active --quiet xray; then
         echo -e "${RED}[!] 致命错误：Xray 核心无法启动！ / Fatal Error: Core failed to start!${NC}"
-        echo -e "${YELLOW}显示错误日志如下：${NC}"
-        journalctl -u xray --no-pager -n 10
-        exit 1
+        journalctl -u xray --no-pager -n 10; exit 1
     fi
 
     cat > /etc/ddr/.env << ENV_EOF
@@ -154,6 +174,8 @@ CORE="xray"
 MODE="$MODE"
 UUID="$UUID"
 REALITY_SNI="$REALITY_SNI"
+MAIN_PORT="$MAIN_PORT"
+SS_PORT="$SS_PORT"
 PUBLIC_KEY="$PBK"
 SHORT_ID="$SHORT_ID"
 HY2_PASS="$HY2_PASS"
@@ -161,12 +183,14 @@ HY2_OBFS="$HY2_OBFS"
 SS_PASS="$SS_PASS"
 LINK_IP="$PUBLIC_IP"
 ENV_EOF
-    echo -e "${GREEN}✔ Xray-core $MODE 部署成功！ / Deployment successful!${NC}"; read -ep "按回车返回 / Press Enter to return..."
+    view_config "deploy"
 }
 
 deploy_singbox() {
     local MODE=$1
     clear; echo -e "${BOLD}${GREEN} 部署 Sing-box [$MODE] ${NC}"; check_env
+    pre_install_setup
+
     systemctl disable --now xray 2>/dev/null || true
     systemctl stop sing-box 2>/dev/null || true
 
@@ -178,15 +202,15 @@ deploy_singbox() {
     PK=$(echo "$KEYS" | grep -i "Private" | awk '{print $NF}'); PBK=$(echo "$KEYS" | grep -i "Public" | awk '{print $NF}')
     if [[ -z "$PK" ]]; then echo -e "${RED}[!] 核心不兼容 / Core incompatible.${NC}"; exit 1; fi
 
-    calculate_sni; UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4); SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r')
+    UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4); SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r')
     HY2_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9'); HY2_OBFS=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9')
+    
     mkdir -p /etc/sing-box; openssl ecparam -genkey -name prime256v1 -out /etc/sing-box/hy2.key 2>/dev/null
-    openssl req -new -x509 -days 36500 -key /etc/sing-box/hy2.key -out /etc/sing-box/hy2.crt -subj "/CN=www.microsoft.com" 2>/dev/null
+    openssl req -new -x509 -days 36500 -key /etc/sing-box/hy2.key -out /etc/sing-box/hy2.crt -subj "/CN=${REALITY_SNI}" 2>/dev/null
 
-    # TCP(VLESS)与UDP(HY2)底层分离，共享物理端口 443
-    JSON_VLESS='{ "type": "vless", "listen": "::", "listen_port": 443, "tcp_fast_open": true, "users": [{"uuid": "'$UUID'", "flow": "xtls-rprx-vision"}], "tls": { "enabled": true, "server_name": "'$REALITY_SNI'", "reality": { "enabled": true, "handshake": { "server": "'$REALITY_SNI'", "server_port": 443 }, "private_key": "'$PK'", "short_id": ["'$SHORT_ID'"] }, "utls": { "enabled": true, "fingerprint": "chrome" } } }'
-    JSON_HY2='{ "type": "hysteria2", "listen": "::", "listen_port": 443, "up_mbps": 3000, "down_mbps": 3000, "port_hopping": "20000-50000", "port_hopping_interval": "30s", "obfs": { "type": "salamander", "password": "'$HY2_OBFS'" }, "users": [{"password": "'$HY2_PASS'"}], "tls": { "enabled": true, "certificate_path": "/etc/sing-box/hy2.crt", "key_path": "/etc/sing-box/hy2.key" } }'
-    JSON_SS='{ "type": "shadowsocks", "listen": "::", "listen_port": 2053, "tcp_fast_open": true, "method": "2022-blake3-aes-128-gcm", "password": "'$SS_PASS'" }'
+    JSON_VLESS='{ "type": "vless", "listen": "::", "listen_port": '$MAIN_PORT', "tcp_fast_open": true, "users": [{"uuid": "'$UUID'", "flow": "xtls-rprx-vision"}], "tls": { "enabled": true, "server_name": "'$REALITY_SNI'", "reality": { "enabled": true, "handshake": { "server": "'$REALITY_SNI'", "server_port": 443 }, "private_key": "'$PK'", "short_id": ["'$SHORT_ID'"] }, "utls": { "enabled": true, "fingerprint": "chrome" } } }'
+    JSON_HY2='{ "type": "hysteria2", "listen": "::", "listen_port": '$MAIN_PORT', "up_mbps": 3000, "down_mbps": 3000, "obfs": { "type": "salamander", "password": "'$HY2_OBFS'" }, "users": [{"password": "'$HY2_PASS'"}], "tls": { "enabled": true, "certificate_path": "/etc/sing-box/hy2.crt", "key_path": "/etc/sing-box/hy2.key" } }'
+    JSON_SS='{ "type": "shadowsocks", "listen": "::", "listen_port": '$SS_PORT', "tcp_fast_open": true, "method": "2022-blake3-aes-128-gcm", "password": "'$SS_PASS'" }'
 
     case $MODE in
         "VLESS") INBOUNDS="[$JSON_VLESS]" ;;
@@ -198,11 +222,21 @@ deploy_singbox() {
     cat > /etc/sing-box/config.json << EOF
 { "log": { "level": "warn" }, "inbounds": $INBOUNDS, "outbounds": [{ "type": "direct" }] }
 EOF
+
+    IPT=$(command -v iptables || echo "/sbin/iptables")
+    IP6=$(command -v ip6tables || echo "/sbin/ip6tables")
+
     cat > /etc/systemd/system/sing-box.service << SVC_EOF
 [Unit]
 After=network.target
 [Service]
+ExecStartPre=-$IPT -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IP6 -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IPT -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStartPre=-$IP6 -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
 ExecStart=/usr/local/bin/sing-box run -c /etc/sing-box/config.json
+ExecStopPost=-$IPT -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
+ExecStopPost=-$IP6 -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports $MAIN_PORT
 Restart=always
 LimitNOFILE=1048576
 LimitNPROC=infinity
@@ -214,9 +248,7 @@ SVC_EOF
     sleep 1
     if ! systemctl is-active --quiet sing-box; then
         echo -e "${RED}[!] 致命错误：Sing-box 核心无法启动！ / Fatal Error: Core failed to start!${NC}"
-        echo -e "${YELLOW}显示错误日志如下：${NC}"
-        journalctl -u sing-box --no-pager -n 10
-        exit 1
+        journalctl -u sing-box --no-pager -n 10; exit 1
     fi
 
     cat > /etc/ddr/.env << ENV_EOF
@@ -224,6 +256,8 @@ CORE="singbox"
 MODE="$MODE"
 UUID="$UUID"
 REALITY_SNI="$REALITY_SNI"
+MAIN_PORT="$MAIN_PORT"
+SS_PORT="$SS_PORT"
 PUBLIC_KEY="$PBK"
 SHORT_ID="$SHORT_ID"
 HY2_PASS="$HY2_PASS"
@@ -231,7 +265,7 @@ HY2_OBFS="$HY2_OBFS"
 SS_PASS="$SS_PASS"
 LINK_IP="$PUBLIC_IP"
 ENV_EOF
-    echo -e "${GREEN}✔ Sing-box $MODE 部署成功！ / Deployment successful!${NC}"; read -ep "按回车返回 / Press Enter to return..."
+    view_config "deploy"
 }
 
 # --- [3] 系统维护功能 ---
@@ -264,11 +298,17 @@ EOF
 }
 
 diagnostics() {
-    clear; echo -e "${CYAN}正在执行本机参数与网络诊断测速... / Running diagnostics...${NC}"
-    echo -e "${YELLOW}[ IP 欺诈与信誉度分析 ]${NC}"
-    bash <(curl -Ls https://Check.Place) -I || true
-    echo -e "\n${YELLOW}[ 全球节点测速 ]${NC}"
-    wget -qO- bench.sh | bash || true
+    clear; echo -e "${CYAN}=== 本机参数与网络诊断测速 / Diagnostics & Speedtest ===${NC}"
+    echo -e " ${GREEN}1.${NC} IP 信誉与流媒体解锁检测 (检测 IP 纯净度、欺诈风险及 Netflix/GPT 解锁情况)"
+    echo -e " ${GREEN}2.${NC} 全球节点基准测速 (测试 VPS 硬件性能及全球各节点上传/下载带宽)"
+    echo -e " ${YELLOW}0.${NC} 返回主菜单"
+    echo -e "${BLUE}------------------------------------------------------${NC}"
+    read -ep "请选择测速项目 / Please select [0-2]: " diag_choice
+    case $diag_choice in
+        1) bash <(curl -Ls https://Check.Place) -I ;;
+        2) wget -qO- bench.sh | bash ;;
+        *) return 0 ;;
+    esac
     read -ep "按回车返回 / Press Enter to return..."
 }
 
@@ -290,23 +330,29 @@ EOF
 }
 
 view_config() {
+    local CALLER=$1
     clear
     if ! source /etc/ddr/.env 2>/dev/null; then echo -e "${RED}未检测到配置！ / Config not found!${NC}"; sleep 2; return 0; fi
-    echo -e "${BLUE}======================================================${NC}\n${BOLD}${CYAN}   节点参数明细与配置提取 (${MODE}) / Topology Export ${NC}\n${BLUE}======================================================${NC}"
+    
+    echo -e "${BLUE}======================================================${NC}\n${BOLD}${CYAN}   协议全部节点参数 (${MODE}) / All Protocol Node Parameters ${NC}\n${BLUE}======================================================${NC}"
     echo -e "${BOLD}1. 引擎/Engine:${NC} $CORE | ${BOLD}模式/Mode:${NC} $MODE\n${BOLD}2. UUID:${NC} $UUID\n${BOLD}3. SNI:${NC} $REALITY_SNI\n${BOLD}4. PBK:${NC} $PUBLIC_KEY | ${BOLD}SID:${NC} $SHORT_ID\n${BLUE}------------------------------------------------------${NC}"
     
     if [[ "$MODE" == *"VLESS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        echo -e "${YELLOW}[ VLESS-Vision 通用链接 / Universal Link ]${NC}\nvless://$UUID@$LINK_IP:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$REALITY_SNI&fp=chrome&pbk=$PUBLIC_KEY&sid=$SHORT_ID&type=tcp#Aio-VLESS\n"
-        echo -e "${PURPLE}[ Clash Meta VLESS YAML ]${NC}\n  - name: Aio-VLESS\n    type: vless\n    server: $LINK_IP\n    port: 443\n    uuid: $UUID\n    network: tcp\n    tls: true\n    flow: xtls-rprx-vision\n    servername: $REALITY_SNI\n    client-fingerprint: chrome\n    reality-opts:\n      public-key: $PUBLIC_KEY\n      short-id: $SHORT_ID\n"
+        echo -e "${YELLOW}[ VLESS-Vision 通用链接 / Universal Link ]${NC}\nvless://$UUID@$LINK_IP:$MAIN_PORT?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$REALITY_SNI&fp=chrome&pbk=$PUBLIC_KEY&sid=$SHORT_ID&type=tcp#Aio-VLESS\n"
+        echo -e "${PURPLE}[ Clash Meta VLESS YAML ]${NC}\n  - name: Aio-VLESS\n    type: vless\n    server: $LINK_IP\n    port: $MAIN_PORT\n    uuid: $UUID\n    network: tcp\n    tls: true\n    flow: xtls-rprx-vision\n    servername: $REALITY_SNI\n    client-fingerprint: chrome\n    reality-opts:\n      public-key: $PUBLIC_KEY\n      short-id: $SHORT_ID\n"
     fi
     if [[ "$MODE" == *"HY2"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        echo -e "${YELLOW}[ Hysteria 2 通用链接 / Universal Link ]${NC}\nhysteria2://$HY2_PASS@$LINK_IP:443/?sni=$REALITY_SNI&alpn=h3&obfs=salamander&obfs-password=$HY2_OBFS#Aio-Hy2\n"
-        echo -e "${PURPLE}[ Clash Meta Hysteria2 YAML ]${NC}\n  - name: Aio-Hy2\n    type: hysteria2\n    server: $LINK_IP\n    port: 443\n    password: $HY2_PASS\n    alpn: [h3]\n    sni: $REALITY_SNI\n    obfs: salamander\n    obfs-password: $HY2_OBFS\n"
+        echo -e "${YELLOW}[ Hysteria 2 通用链接 / Universal Link ]${NC}\nhysteria2://$HY2_PASS@$LINK_IP:$MAIN_PORT/?insecure=1&sni=$REALITY_SNI&alpn=h3&obfs=salamander&obfs-password=$HY2_OBFS&mport=20000-50000#Aio-Hy2\n"
+        echo -e "${PURPLE}[ Clash Meta Hysteria2 YAML ]${NC}\n  - name: Aio-Hy2\n    type: hysteria2\n    server: $LINK_IP\n    port: '20000-50000'\n    password: $HY2_PASS\n    alpn: [h3]\n    sni: $REALITY_SNI\n    skip-cert-verify: true\n    obfs: salamander\n    obfs-password: $HY2_OBFS\n"
     fi
     if [[ "$MODE" == *"SS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
         SS_BASE64=$(echo -n "2022-blake3-aes-128-gcm:${SS_PASS}" | base64 -w 0 2>/dev/null || echo -n "2022-blake3-aes-128-gcm:${SS_PASS}" | base64)
-        echo -e "${YELLOW}[ Shadowsocks-2022 通用链接 / Universal Link ]${NC}\nss://${SS_BASE64}@${LINK_IP}:2053#Aio-SS\n"
-        echo -e "${PURPLE}[ Clash Meta SS YAML ]${NC}\n  - name: Aio-SS\n    type: ss\n    server: $LINK_IP\n    port: 2053\n    cipher: 2022-blake3-aes-128-gcm\n    password: $SS_PASS\n"
+        echo -e "${YELLOW}[ Shadowsocks-2022 通用链接 / Universal Link ]${NC}\nss://${SS_BASE64}@${LINK_IP}:$SS_PORT#Aio-SS\n"
+        echo -e "${PURPLE}[ Clash Meta SS YAML ]${NC}\n  - name: Aio-SS\n    type: ss\n    server: $LINK_IP\n    port: $SS_PORT\n    cipher: 2022-blake3-aes-128-gcm\n    password: $SS_PASS\n"
+    fi
+    
+    if [[ "$CALLER" == "deploy" ]]; then
+        echo -e "${GREEN}✔ 部署成功！如果要查询节点明细再去菜单 13 查看。 / Deployment successful! See Menu 13 later.${NC}"
     fi
     read -ep "按回车返回主菜单 / Press Enter to return..."
 }
@@ -332,11 +378,11 @@ while true; do
     systemctl is-active --quiet xray && STATUS="${GREEN}Running (Xray)${NC}" || { systemctl is-active --quiet sing-box && STATUS="${CYAN}Running (Sing-box)${NC}" || STATUS="${RED}Stopped${NC}"; }
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V21 Final] ${NC}\n${BLUE}======================================================${NC}"
+    clear; echo -e "${BLUE}======================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V26 Ultimate] ${NC}\n${BLUE}======================================================${NC}"
     echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}------------------------------------------------------${NC}"
     echo -e " ${YELLOW}--- Xray-core 独立/全家桶安装 | Single/All-in-One ---${NC}\n ${GREEN}1.${NC} 部署 VLESS-Vision (REALITY) / Deploy VLESS\n ${GREEN}2.${NC} 部署 Hysteria 2 / Deploy Hy2\n ${GREEN}3.${NC} 部署 Shadowsocks / Deploy SS-2022\n ${GREEN}4.${NC} 部署 协议全家桶 (三合一) / Deploy All-in-One\n${BLUE}------------------------------------------------------${NC}"
     echo -e " ${CYAN}--- Sing-box  独立/全家桶安装 | Single/All-in-One ---${NC}\n ${GREEN}5.${NC} 部署 VLESS-Vision (REALITY) / Deploy VLESS\n ${GREEN}6.${NC} 部署 Hysteria 2 / Deploy Hy2\n ${GREEN}7.${NC} 部署 Shadowsocks / Deploy SS-2022\n ${GREEN}8.${NC} 部署 协议全家桶 (三合一) / Deploy All-in-One\n${BLUE}------------------------------------------------------${NC}"
-    echo -e " ${YELLOW}9.${NC}  流量监控与熔断护卫 / Quota Guard\n ${GREEN}10.${NC} 本机参数与网络诊断测速 / Diagnostics & Speedtest\n ${GREEN}11.${NC} VPS 全面优化 / VPS Tuning\n ${GREEN}13.${NC} 配置明细与节点提取 / Export Topology\n ${YELLOW}14.${NC} 脚本源码 OTA 热更新 / OTA Update\n ${RED}15.${NC} 彻底清空卸载环境 / Clean Uninstall\n ${GREEN}0.${NC}  退出面板 / Exit Dashboard\n${BLUE}======================================================${NC}"
+    echo -e " ${YELLOW}9.${NC}  流量监控与熔断护卫 / Quota Guard\n ${GREEN}10.${NC} 本机参数与网络诊断测速 / Diagnostics & Speedtest\n ${GREEN}11.${NC} VPS 全面优化 / VPS Tuning\n ${YELLOW}13.${NC} 协议全部节点参数 / All Protocol Node Parameters\n ${YELLOW}14.${NC} 脚本源码 OTA 热更新 / OTA Update\n ${RED}15.${NC} 彻底清空卸载环境 / Clean Uninstall\n ${GREEN}0.${NC}  退出面板 / Exit Dashboard\n${BLUE}======================================================${NC}"
     read -ep " 请选择 / Please select [0-15]: " choice
     case $choice in
         1) deploy_xray "VLESS" ;; 
@@ -350,7 +396,7 @@ while true; do
         9) setup_quota ;;
         10) diagnostics ;;
         11) tune_vps ;;
-        13) view_config ;; 
+        13) view_config "" ;; 
         14) setup_shortcut "update"; echo -e "OTA 成功。 / OTA Successful."; exit 0 ;;
         15) clean_uninstall ;; 
         0) clear; exit 0 ;; 
