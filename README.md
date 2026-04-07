@@ -28,4 +28,4 @@
 
 **全球高速通道 (推荐海外服务器使用):**
 ```bash
-sudo bash -c "$(curl -Ls (https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh))"
+sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
