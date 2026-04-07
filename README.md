@@ -1,4 +1,4 @@
-# All-in-One Duo 。
+# All-in-One Duo
 
 ---
 
