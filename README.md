@@ -1,7 +1,7 @@
 # Aio-box
 
 - **[中文说明](#-中文说明) | [English Description](#-english-description)**
-- **致谢 / Credits:** 感谢 [Xray-core](https://github.com/XTLS/Xray-core) 与 [Sing-box](https://github.com/SagerNet/sing-box) 提供的强大网络路由与加密核心。
+- **致谢 / Credits:** 感谢 Xray-core 与 Sing-box 提供的强大网络路由与加密核心。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/alariclin/aio-box?style=flat&color=yellow)](https://github.com/alariclin/aio-box/stargazers)
@@ -13,27 +13,27 @@
 <a name="-中文说明"></a>
 ## 中文说明
 
-**Aio-box** 是一款专为网络安全、强隐私保护与路由优化打造的“双核·高可用”一键部署环境。本项目聚焦于 **Xray-core (v26+)** 与 **Sing-box (Testing)** 的原生深度集成，提供物理级防封锁与系统级并发性能优化。
+**Aio-box** 是一款专为网络安全、隐私保护与路由优化打造的“双核·高可用”一键部署环境。本项目聚焦于 **Xray-core (v26+)** 与 **Sing-box (Testing)** 的原生深度集成，提供物理级防封锁与系统级并发性能优化。
 
 ### ✨ 核心特性
-* **TCP/UDP 443 双栈复用**: 完美实现 VLESS (TCP) 与 Hysteria 2 (UDP) 共享物理 443 端口，极致伪装。
-* **原生防封锁引擎**: Xray v26.3.27 原生支持，内置 Sing-box 端口跳跃 (NAT Hopping) 与 Chrome 指纹强校验。
-* **动态 SNI 与自签发证书**: 支持自定义私有域名，并自动生成防探测的 100 年期自签发安全证书。
-* **高可用本地化**: `sb` 快捷指令本地化物理执行，自带离线缓存，彻底免疫远程网络波动。
-* **自动提权与防呆设计**: 脚本自动获取 Root 权限，屏蔽退格键乱码与误触崩溃，提供流畅的极客交互。
+* **TCP/UDP 443 双栈复用**: 完美实现 VLESS (TCP) 与 Hysteria 2 (UDP) 共享物理 443 端口，极致伪装并提升连接成功率。
+* **原生防封锁引擎**: Xray v26.3.27 原生支持，内置 Sing-box 端口跳跃 (NAT Hopping) 与 Chrome 指纹强校验，有效抵御 DPI 探测。
+* **动态 SNI 与自签发证书**: 支持自定义私有域名，并根据 SNI 自动生成防探测的 100 年期自签发安全证书。
+* **高可用本地化**: `sb` 快捷指令本地化物理执行，自带离线核心缓存，彻底免疫远程网络波动或代码库污染。
+* **自动提权与防呆设计**: 脚本自动获取 Root 权限，屏蔽退格键乱码与误触崩溃，提供极致流畅的极客交互体验。
 
 ### 🚀 快速部署
 
-无需手动切换用户，请直接复制以下一键安装指令到终端执行：
+无需手动切换用户，请直接复制以下指令到终端执行（指令已物理纯化，无干扰链接符号）：
 
 **全球高速通道 (推荐海外机器使用):**
 ```bash
-sudo bash -c "$(curl -Ls (https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh))"
+sudo bash -c "$(curl -Ls [https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh](https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh))"
 ```
 
 **分发加速镜像 (中国大陆机器推荐):**
 ```bash
-sudo bash -c "$(curl -Ls (https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh))"
+sudo bash -c "$(curl -Ls [https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh](https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh))"
 ```
 
 #### ⚡ 全局管理
@@ -57,21 +57,24 @@ sb
 ---
 
 <a name="-english-description"></a>
-## English Description
+English Description
+Aio-box is a high-availability, dual-core deployment environment designed for network security, privacy protection, and routing optimization. It features native integration of Xray-core (v26+) and Sing-box (Testing) with kernel-level performance tuning.
 
-**Aio-boxo** is a high-availability, robust deployment environment designed for network security and routing optimization. Built on a dual-core architecture, it seamlessly integrates Xray-core and Sing-box, featuring automated YAML topology generation, offline core caching, and kernel-level TCP/BBR tuning.
+✨ Key Features
+TCP/UDP 443 Multiplexing: Shares physical port 443 between VLESS (TCP) and Hysteria 2 (UDP) for ultimate stealth and compatibility.
 
-### ✨ Key Features
-* **Dual-Core Routing:** Native support for both Xray and Sing-box engines. Deploy modular network protocols with extreme flexibility.
-* **Secure Protocol Matrix:** Incorporates VLESS-TCP-Vision (REALITY), Hysteria 2 (Salamander obfuscation), and Shadowsocks 2022 for ultimate privacy and client compatibility.
-* **Bulletproof Local Exec:** The `sb` dashboard runs strictly locally. Core binaries are cached offline, ensuring 100% install success even if remote repositories go down.
-* **YAML Parser Engine:** Auto-renders standard URIs AND **Clash Meta (Mihomo) YAML proxies** immediately after compilation (uTLS enabled by default).
-* **Traffic Quota Guard:** API-based real-time bandwidth monitoring with an auto-killswitch to prevent malicious traffic abuse and overage billing.
-* **Geek-Level Tuning:** Automates Ulimit lifting, Swap memory injection, and advanced TCP congestion control (BBR) optimizations.
+Next-Gen Anti-Censorship: Optimized for Xray v26.3.27 with native NAT port-hopping and Chrome Root Store fingerprint validation.
 
-### 🚀 Quick Start
+Dynamic SNI & Security Certs: Supports custom domain input and auto-generates 100-year self-signed certificates mapped to your SNI.
 
-**⚠️ Prerequisite:** You must run this script as the Root user. Switch to Root by executing:
+Offline-Ready UX: The sb dashboard runs locally with core binaries cached, ensuring 100% reliability regardless of remote connectivity.
+
+Auto-Escalation: Automatically requests Root privileges and features Readline support to prevent character garbling in terminals.
+
+🚀 Quick Start
+Run the following command in your terminal. The script will automatically elevate to necessary privileges:
+
+Global CDN:
 ```bash
 sudo su -
 ```
