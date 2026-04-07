@@ -81,7 +81,7 @@ sudo su -
 
 Once you have root access, run the following command to install:
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)
+sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
 ```
 
 #### ⚡ Global Dashboard
