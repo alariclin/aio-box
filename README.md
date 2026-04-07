@@ -32,12 +32,12 @@ sudo su -
 
 获取 Root 权限后，执行以下指令开始安装：
 ```bash
-bash <(curl -Ls [https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh](https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh))
+bash <(curl -Ls https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh)
 ```
 
 **快速分发镜像节点 (中国大陆机器推荐):**
 ```bash
-bash <(curl -Ls [https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh](https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh))
+bash <(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh)
 ```
 
 #### ⚡ 全局管理指令
@@ -84,12 +84,12 @@ sudo su -
 
 Once you have root access, run the following command to install:
 ```bash
-bash <(curl -Ls [https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh](https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh))
+bash <(curl -Ls https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh)
 ```
 
 **Fast Global Mirror:**
 ```bash
-bash <(curl -Ls [https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh](https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh))
+bash <(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alariclin/all-in-one-duo/main/install.sh)
 ```
 
 #### ⚡ Global Dashboard
