@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ====================================================================
 # All-in-One Duo Ultimate Console [Dual-Core Omni | Bilingual | Shortcut 'sb']
-# Features: Global Shortcut 'sb', VPS Auto-Tuning, Traffic Quota, Auto-Links
-# Author: alariclin | Version: 2026.04.Apex-Final-V3
+# Features: Global Shortcut, VPS Auto-Tuning, Traffic Quota, Links & YAML Output
+# Author: Nbody | Version: 2026.04.Apex-GM
 # ====================================================================
 
 set -e
@@ -12,7 +12,7 @@ export LC_ALL=C
 RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[0;33m' BLUE='\033[0;36m' PURPLE='\033[0;35m' CYAN='\033[0;36m' NC='\033[0m' BOLD='\033[1m'
 trap 'echo -e "\n${RED}[!] 触发安全自愈，系统中断并回滚 / Rollback initiated.${NC}"; exit 1' ERR
 
-# --- [0] 快捷指令注入 (本地化物理运行) ---
+# --- [0] 本地化快捷指令引擎 (彻底告别在线拉取的死循环) ---
 setup_shortcut() {
     mkdir -p /etc/ddr
     if [[ ! -f /etc/ddr/aio.sh || "$1" == "update" ]]; then
@@ -37,7 +37,7 @@ check_base() {
 check_env() {
     check_base
     if ! command -v jq >/dev/null || ! command -v bc >/dev/null; then
-        echo -e "${YELLOW}[*] 安装底层核心依赖 / Installing base dependencies...${NC}"
+        echo -e "${YELLOW}[*] 安装底层依赖 / Base dependencies...${NC}"
         $PKG_UPDATE >/dev/null 2>&1 || true
         $PKG_INSTALL wget curl jq openssl uuid-runtime psmisc socat cron chrony fail2ban iptables iproute2 python3 bc >/dev/null 2>&1 || true
         if [[ "$PKG_MGR" == "apt-get" ]]; then $PKG_INSTALL iptables-persistent >/dev/null 2>&1 || true; fi
@@ -47,21 +47,17 @@ check_env() {
 
 # --- [2] VPS 极致开荒 ---
 tune_vps() {
-    clear; echo -e "${BLUE}======================================================${NC}\n${BOLD}${CYAN}  VPS 极致开荒与系统调优 / VPS Initialization & Tuning ${NC}\n${BLUE}======================================================${NC}"
-    check_base
+    clear; echo -e "${BLUE}======================================================${NC}\n${BOLD}${CYAN}  VPS 极致开荒与系统调优 / VPS Init & Tuning ${NC}\n${BLUE}======================================================${NC}"; check_base
     if command -v getenforce >/dev/null && [ "$(getenforce)" == "Enforcing" ]; then
-        echo -e "${YELLOW}[*] 解除 SELinux 封锁...${NC}"
         $PKG_INSTALL policycoreutils-python-utils 2>/dev/null || true
         semanage port -a -t http_port_t -p tcp 443 2>/dev/null || true; semanage port -a -t http_port_t -p tcp 2053 2>/dev/null || true
     fi
     PHY_MEM=$(free -m | awk '/^Mem:/{print $2}'); SWAP_MEM=$(free -m | awk '/^Swap:/{print $2}')
     if [[ "$SWAP_MEM" == "0" ]] && [[ "$PHY_MEM" -le 1500 ]]; then
-        echo -e "${YELLOW}[*] 注入 1GB 虚拟内存 Swap...${NC}"
         fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024 >/dev/null 2>&1
         chmod 600 /swapfile; mkswap /swapfile >/dev/null 2>&1; swapon /swapfile >/dev/null 2>&1
         grep -q '/swapfile' /etc/fstab || echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
     fi
-    echo -e "${YELLOW}[*] 突破 Ulimit 与 TCP 网络栈...${NC}"
     grep -q '1048576' /etc/security/limits.conf || { echo "* soft nofile 1048576" >> /etc/security/limits.conf; echo "* hard nofile 1048576" >> /etc/security/limits.conf; }
     systemctl restart fail2ban 2>/dev/null || true; systemctl enable chronyd 2>/dev/null || true; systemctl start chronyd 2>/dev/null || true
     date -s "$(curl -sI https://google.com | grep -i Date | sed 's/Date: //g')" >/dev/null 2>&1 || true; modprobe tcp_bbr 2>/dev/null || true
@@ -83,10 +79,9 @@ net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 EOF
     sysctl -p /etc/sysctl.d/99-ddr-tune.conf >/dev/null 2>&1 || true
-    echo -e "${GREEN}✔ 开荒完成！系统处于巅峰状态。${NC}"; read -p "按回车返回 / Press Enter..."
+    echo -e "${GREEN}✔ 开荒完成 / Tuning Complete.${NC}"; read -p "按回车返回 / Press Enter..."
 }
 
-# --- [3] 系统探针与冲突清理 ---
 get_system_info() {
     IPV4=$(curl -s4m3 api.ipify.org || echo ""); IPV6=$(curl -s6m3 api64.ipify.org || echo "")
     [[ -n "$IPV4" ]] && PUBLIC_IP="$IPV4" && LINK_IP="$IPV4" && DNS_TYPE="A" || { PUBLIC_IP="$IPV6"; LINK_IP="[$IPV6]"; DNS_TYPE="AAAA"; }
@@ -98,15 +93,13 @@ get_system_info() {
 }
 
 check_port_conflict() {
-    echo -e "${YELLOW}[*] 检测系统冲突与端口 / Checking conflicts...${NC}"
     if [[ "$CORE_RUNNING" != "none" ]] || ss -tulpn | grep -qE ':(443|2053|8443) '; then
-        echo -e "${RED}[!] 核心正在运行或端口被占用 / Ports occupied.${NC}"
-        read -p "    强制卸载旧核心并释放端口？/ Force clean ports? [y/N]: " rm_old
+        echo -e "${RED}[!] 核心或端口冲突 / Ports occupied.${NC}"
+        read -p "    强制释放并清场？/ Force clean? [y/N]: " rm_old
         if [[ "${rm_old,,}" == "y" ]]; then
             systemctl stop xray sing-box nginx 2>/dev/null || true; systemctl disable xray sing-box nginx 2>/dev/null || true
             rm -rf /usr/local/etc/xray /etc/sing-box /usr/local/bin/xray /usr/local/bin/sing-box
             if command -v fuser >/dev/null 2>&1; then fuser -k 443/tcp 443/udp 2053/tcp 8443/tcp 8443/udp 80/tcp 2>/dev/null || true; fi
-            echo -e "${GREEN} -> 清理完成 / Cleanup successful.${NC}"
         else exit 1; fi
     fi
 }
@@ -124,7 +117,6 @@ calculate_sni() {
     AUTO_HY2="api-sync.network"
 }
 
-# --- [4] 熔断器与全局链接输出 ---
 setup_traffic_guard() {
     local quota_gb=$1; local core_name=$2
     if [[ "$quota_gb" -le 0 ]]; then rm -f /etc/ddr/.quota /usr/local/bin/ddr-quota.sh; crontab -l 2>/dev/null | grep -v 'ddr-quota.sh' | crontab -; return; fi
@@ -142,13 +134,16 @@ EOF
     (crontab -l 2>/dev/null | grep -v "$core_name restart"; echo "0 0 1 * * systemctl restart $core_name") | crontab -
 }
 
+# --- [4.5] 终极节点分发引擎 (URI + Clash Meta YAML) ---
 print_links() {
     source /etc/ddr/.env 2>/dev/null || return
-    echo -e "\n${YELLOW}--- 节点订阅链接 / Node Links ---${NC}"
+    local SKIP_CERT=$([[ "$HY2_INSECURE_FLAG" == "1" ]] && echo "true" || echo "false")
+    
+    echo -e "\n${YELLOW}--- 节点订阅链接 (通用 URI) ---${NC}"
     if [[ "$CORE" == "xray" ]]; then
         if grep -q "vless-in" /usr/local/etc/xray/config.json 2>/dev/null; then echo -e "${CYAN}[ Xray VLESS-xhttp-Reality ]${NC}\nvless://$UUID@$LINK_IP:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$REALITY_SNI&fp=chrome&pbk=$PUBLIC_KEY&sid=$SHORT_ID&type=xhttp#Xray-xhttp\n"; fi
         if grep -q "hy2-in" /usr/local/etc/xray/config.json 2>/dev/null; then echo -e "${CYAN}[ Xray Hysteria2 (Salamander) ]${NC}\nhy2://$HY2_PASS@$LINK_IP:8443?insecure=1&sni=$HY2_SNI&mport=20000-50000&obfs=salamander&obfs-password=$HY2_OBFS#Xray-Hy2\n"; fi
-        if grep -q "ss-in" /usr/local/etc/xray/config.json 2>/dev/null; then echo -e "${CYAN}[ Xray SS-2022 ]${NC}\nss://$(echo -n "2022-blake3-aes-128-gcm:${SS_SIP_CORE}" | base64 -w 0)@$LINK_IP:2053#Xray-SS\n"; fi
+        if grep -q "ss-in" /usr/local/etc/xray/config.json 2>/dev/null; then echo -e "${CYAN}[ Xray SS-2022 ]${NC}\nss://${SS_SIP_CORE}@$LINK_IP:2053#Xray-SS\n"; fi
     else
         if grep -q "vless-in" /etc/sing-box/config.json 2>/dev/null; then echo -e "${GREEN}[ Sing-box VLESS-Reality ]${NC}\nvless://$UUID@$LINK_IP:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$REALITY_SNI&fp=chrome&pbk=$PUBLIC_KEY&sid=$SHORT_ID&type=tcp#SB-Reality\n"; fi
         if grep -q "hy2-in" /etc/sing-box/config.json 2>/dev/null; then
@@ -157,6 +152,31 @@ print_links() {
         fi
         if grep -q "ss-in" /etc/sing-box/config.json 2>/dev/null; then echo -e "${GREEN}[ Sing-box SS-2022 ]${NC}\nss://${SS_SIP_CORE}@$LINK_IP:2053#SB-SS\n"; fi
     fi
+
+    echo -e "${PURPLE}--- Clash Meta (Mihomo) YAML 直通节点 ---${NC}"
+    echo -e "proxies:"
+    if [[ "$CORE" == "xray" ]]; then
+        if grep -q "vless-in" /usr/local/etc/xray/config.json 2>/dev/null; then
+            echo -e "  - name: Xray-VLESS-xhttp\n    type: vless\n    server: $LINK_IP\n    port: 443\n    uuid: $UUID\n    network: xhttp\n    tls: true\n    udp: true\n    xudp: true\n    flow: xtls-rprx-vision\n    servername: $REALITY_SNI\n    client-fingerprint: chrome\n    reality-opts:\n      public-key: $PUBLIC_KEY\n      short-id: $SHORT_ID"
+        fi
+        if grep -q "hy2-in" /usr/local/etc/xray/config.json 2>/dev/null; then
+            echo -e "  - name: Xray-Hysteria2\n    type: hysteria2\n    server: $LINK_IP\n    port: 8443\n    password: $HY2_PASS\n    sni: $HY2_SNI\n    skip-cert-verify: $SKIP_CERT\n    obfs: salamander\n    obfs-password: $HY2_OBFS\n    ports: 20000-50000"
+        fi
+        if grep -q "ss-in" /usr/local/etc/xray/config.json 2>/dev/null; then
+            echo -e "  - name: Xray-SS2022\n    type: ss\n    server: $LINK_IP\n    port: 2053\n    cipher: 2022-blake3-aes-128-gcm\n    password: $SS_PASS"
+        fi
+    else
+        if grep -q "vless-in" /etc/sing-box/config.json 2>/dev/null; then
+            echo -e "  - name: SB-VLESS-Reality\n    type: vless\n    server: $LINK_IP\n    port: 443\n    uuid: $UUID\n    network: tcp\n    tls: true\n    udp: true\n    xudp: true\n    flow: xtls-rprx-vision\n    servername: $REALITY_SNI\n    client-fingerprint: chrome\n    reality-opts:\n      public-key: $PUBLIC_KEY\n      short-id: $SHORT_ID"
+        fi
+        if grep -q "hy2-in" /etc/sing-box/config.json 2>/dev/null; then
+            echo -e "  - name: SB-Hysteria2\n    type: hysteria2\n    server: $LINK_IP\n    port: 443\n    password: $HY2_PASS\n    sni: $HY2_SNI\n    skip-cert-verify: $SKIP_CERT\n    obfs: salamander\n    obfs-password: $HY2_OBFS\n    ports: 20000-50000"
+        fi
+        if grep -q "ss-in" /etc/sing-box/config.json 2>/dev/null; then
+            echo -e "  - name: SB-SS2022\n    type: ss\n    server: $LINK_IP\n    port: 2053\n    cipher: 2022-blake3-aes-128-gcm\n    password: $SS_PASS"
+        fi
+    fi
+    echo -e ""
 }
 
 # --- [5] Xray-core 部署 ---
@@ -166,7 +186,9 @@ install_xray() {
     read -p " [?] 输入每月限额(GB，0为不限制): " QUOTA_GB; [[ -z "$QUOTA_GB" || ! "$QUOTA_GB" =~ ^[0-9]+$ ]] && QUOTA_GB=0
     echo -e "\n [?] 路由分流:  1. 全局代理   2. 绕过大陆与广告 (推荐)"; read -p " 选择 [1-2, default 2]: " ROUTE_CHOICE; [[ -z "$ROUTE_CHOICE" ]] && ROUTE_CHOICE=2
     
-    echo -e "\n${YELLOW}[1/4] 获取核心...${NC}"; bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
+    echo -e "\n${YELLOW}[1/4] 获取核心...${NC}"
+    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1
+    
     echo -e "${YELLOW}[2/4] SNI 矩阵计算与密码学...${NC}"; calculate_sni
     echo -e "${CYAN} -> 推荐 REALITY SNI: ${AUTO_REALITY}${NC}"; read -p " -> 自定义 (回车默认): " CUSTOM_REALITY; REALITY_SNI=${CUSTOM_REALITY:-$AUTO_REALITY}
     echo -e "${CYAN} -> 推荐 Hysteria2 SNI: ${AUTO_HY2}${NC}"; read -p " -> 自定义 (回车默认): " CUSTOM_HY2; HY2_SNI=${CUSTOM_HY2:-$AUTO_HY2}
@@ -174,12 +196,13 @@ install_xray() {
     UUID=$(uuidgen); HY2_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9'); HY2_OBFS=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9')
     SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r'); SS_SIP_CORE=$(echo -n "2022-blake3-aes-128-gcm:${SS_PASS}" | base64 -w 0)
     
+    # 绝对路径调用防御机制
     KEYS=$(/usr/local/bin/xray x25519 2>/dev/null || echo ""); PRIVATE_KEY=$(echo "$KEYS" | grep "Private" | awk '{print $3}' || echo ""); PUBLIC_KEY=$(echo "$KEYS" | grep "Public" | awk '{print $3}' || echo ""); SHORT_ID=$(openssl rand -hex 4)
     if [[ -z "$PRIVATE_KEY" ]]; then KEYS=$(/usr/local/bin/xray x25519); PRIVATE_KEY=$(echo "$KEYS" | grep "Private" | awk '{print $3}'); PUBLIC_KEY=$(echo "$KEYS" | grep "Public" | awk '{print $3}'); fi
     
-    mkdir -p /usr/local/etc/xray; mkdir -p /etc/ddr; HY2_INSECURE_FLAG="1"
+    mkdir -p /usr/local/etc/xray /etc/ddr; HY2_INSECURE_FLAG="1"
     if [[ "$MODE" == "all" || "$MODE" == "hy2" ]]; then
-        read -p " [?] 输入已解析域名以申请真实证书(回车自签): " USER_DOMAIN
+        read -p " [?] 输入已解析域名以申请证书(回车跳过自签): " USER_DOMAIN
         if [[ -n "$USER_DOMAIN" ]]; then
             echo -e "${CYAN} -> DoH 溯源验证...${NC}"; systemctl stop nginx 2>/dev/null || true; if command -v fuser >/dev/null 2>&1; then fuser -k 80/tcp 2>/dev/null || true; sleep 1; fi
             RESOLVED_IP=$(curl -sH "accept: application/dns-json" "https://cloudflare-dns.com/dns-query?name=$USER_DOMAIN&type=$DNS_TYPE" | jq -r '.Answer[0].data' || echo "")
@@ -210,8 +233,7 @@ EOF
     iptables -I INPUT -p tcp -m multiport --dports 80,443,2053,8443 -j ACCEPT; iptables -I INPUT -p udp -m multiport --dports 443,2053,8443,20000:50000 -j ACCEPT
     if command -v netfilter-persistent >/dev/null; then netfilter-persistent save 2>/dev/null || true; fi
     sed -i '/LimitNOFILE/d' /etc/systemd/system/xray.service 2>/dev/null || true; sed -i '/LimitNPROC/d' /etc/systemd/system/xray.service 2>/dev/null || true; sed -i '/\[Service\]/a LimitNPROC=infinity\nLimitNOFILE=infinity' /etc/systemd/system/xray.service
-    systemctl daemon-reload && systemctl restart xray && systemctl enable xray
-    setup_traffic_guard "$QUOTA_GB" "xray"
+    systemctl daemon-reload && systemctl restart xray && systemctl enable xray; setup_traffic_guard "$QUOTA_GB" "xray"
 
     cat > /etc/ddr/.env << ENV_EOF
 CORE="xray"
@@ -255,9 +277,9 @@ install_singbox() {
     KEYS=$(/usr/local/bin/sing-box generate reality-keypair 2>/dev/null || echo ""); PRIVATE_KEY=$(echo "$KEYS" | grep -i "Private" | awk '{print $2}' || echo ""); PUBLIC_KEY=$(echo "$KEYS" | grep -i "Public" | awk '{print $2}' || echo ""); SHORT_ID=$(openssl rand -hex 4)
     if [[ -z "$PRIVATE_KEY" ]]; then KEYS=$(/usr/local/bin/sing-box generate reality-keypair); PRIVATE_KEY=$(echo "$KEYS" | grep -i "Private" | awk '{print $2}'); PUBLIC_KEY=$(echo "$KEYS" | grep -i "Public" | awk '{print $2}'); fi
     
-    mkdir -p /etc/sing-box; mkdir -p /etc/ddr; HY2_INSECURE_FLAG="1"; MASQUERADE_CFG=""
+    mkdir -p /etc/sing-box /etc/ddr; HY2_INSECURE_FLAG="1"; MASQUERADE_CFG=""
     if [[ "$MODE" == "all" || "$MODE" == "hy2" ]]; then
-        read -p " [?] 输入已解析域名以申请真实证书(回车自签): " USER_DOMAIN
+        read -p " [?] 输入已解析域名以申请证书(回车跳过自签): " USER_DOMAIN
         if [[ -n "$USER_DOMAIN" ]]; then
             echo -e "${CYAN} -> DoH 溯源验证...${NC}"; systemctl stop nginx 2>/dev/null || true; if command -v fuser >/dev/null 2>&1; then fuser -k 80/tcp 2>/dev/null || true; sleep 1; fi
             RESOLVED_IP=$(curl -sH "accept: application/dns-json" "https://cloudflare-dns.com/dns-query?name=$USER_DOMAIN&type=$DNS_TYPE" | jq -r '.Answer[0].data' || echo "")
@@ -289,22 +311,8 @@ CONFIG_EOF
     iptables -t nat -F PREROUTING 2>/dev/null || true; iptables -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports 443
     iptables -I INPUT -p tcp -m multiport --dports 80,443,2053 -j ACCEPT; iptables -I INPUT -p udp -m multiport --dports 443,2053,20000:50000 -j ACCEPT
     if command -v netfilter-persistent >/dev/null; then netfilter-persistent save 2>/dev/null || true; fi
-
-    cat > /etc/systemd/system/sing-box.service << SVC_EOF
-[Unit]
-After=network.target nss-lookup.target
-[Service]
-ExecStart=/usr/local/bin/sing-box run -c /etc/sing-box/config.json
-Restart=always
-LimitNPROC=infinity
-LimitNOFILE=infinity
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-[Install]
-WantedBy=multi-user.target
-SVC_EOF
-    systemctl daemon-reload && systemctl enable --now sing-box
-    setup_traffic_guard "$QUOTA_GB" "singbox"
+    sed -i '/LimitNOFILE/d' /etc/systemd/system/sing-box.service 2>/dev/null || true; sed -i '/LimitNPROC/d' /etc/systemd/system/sing-box.service 2>/dev/null || true; sed -i '/\[Service\]/a LimitNPROC=infinity\nLimitNOFILE=infinity' /etc/systemd/system/sing-box.service
+    systemctl daemon-reload && systemctl enable --now sing-box; setup_traffic_guard "$QUOTA_GB" "singbox"
 
     cat > /etc/ddr/.env << ENV_EOF
 CORE="singbox"
@@ -367,7 +375,7 @@ while true; do
     echo -e " ${BOLD}IP:${NC} ${YELLOW}${PUBLIC_IP}${NC} | ${BOLD}ASN:${NC} ${CYAN}${ASN_ORG} (${COUNTRY})${NC}\n ${BOLD}STATUS:${NC} ${STATUS} ${CYAN}(快捷指令: sb)${NC}\n${BLUE}------------------------------------------------------${NC}"
     echo -e " ${BOLD}[ Xray-core 极限架构 ]${NC}\n ${GREEN}1.${NC} 部署 全家桶 (VLESS-${YELLOW}xhttp${NC}+Hy2+SS)\n ${GREEN}2.${NC} 仅部署 VLESS-Reality-xhttp\n ${GREEN}3.${NC} 仅部署 Hysteria 2\n ${GREEN}4.${NC} 仅部署 SS-2022\n${BLUE}------------------------------------------------------${NC}"
     echo -e " ${BOLD}[ Sing-box 矩阵架构 ]${NC}\n ${GREEN}5.${NC} 部署 全家桶 (VLESS+Hy2+SS)\n ${GREEN}6.${NC} 仅部署 VLESS-Reality\n ${GREEN}7.${NC} 仅部署 Hysteria 2\n ${GREEN}8.${NC} 仅部署 SS-2022\n${BLUE}------------------------------------------------------${NC}"
-    echo -e " ${BOLD}[ 运维管理 ]${NC}\n ${GREEN}9.${NC} 流量监控 / Quota\n ${GREEN}10.${NC} 诊断测速 / Speedtest\n ${GREEN}11.${NC} VPS 开荒调优 / Tuning\n ${GREEN}12.${NC} 账户管理 / Accounts\n ${GREEN}13.${NC} 提取节点 / Links\n ${GREEN}14.${NC} 查看参数 / Config\n ${YELLOW}16.${NC} 更新脚本 / Update\n ${RED}15.${NC} 彻底卸载 / Uninstall\n ${GREEN}0.${NC}  退出 / Exit\n${BLUE}======================================================${NC}"
+    echo -e " ${BOLD}[ 运维管理 ]${NC}\n ${GREEN}9.${NC} 流量监控 / Quota\n ${GREEN}10.${NC} 诊断测速 / Speedtest\n ${GREEN}11.${NC} VPS 开荒调优 / Tuning\n ${GREEN}12.${NC} 账户管理 / Accounts\n ${GREEN}13.${NC} 提取节点 / Links & YAML\n ${GREEN}14.${NC} 查看参数 / Config\n ${YELLOW}16.${NC} 更新脚本 / Update\n ${RED}15.${NC} 彻底卸载 / Uninstall\n ${GREEN}0.${NC}  退出 / Exit\n${BLUE}======================================================${NC}"
     read -p " 请选择 [0-16]: " choice
     case $choice in
         1) install_xray "all" ;; 2) install_xray "vless" ;; 3) install_xray "hy2" ;; 4) install_xray "ss" ;;
@@ -377,13 +385,13 @@ while true; do
         15) 
             systemctl stop xray sing-box 2>/dev/null || true
             systemctl disable xray sing-box 2>/dev/null || true
-            # 精准打击：只删协议文件、环境变量和熔断日志，绝对保留 /usr/local/bin/sb 和 /etc/ddr/aio.sh
+            # 精准打击隔离：绝对保留 /usr/local/bin/sb 和 /etc/ddr/aio.sh
             rm -rf /usr/local/etc/xray /etc/sing-box /etc/ddr/.env /etc/ddr/.quota /usr/local/bin/xray /usr/local/bin/sing-box /usr/local/bin/ddr-quota.sh ~/.acme.sh /etc/sysctl.d/99-ddr-tune.conf
             sysctl --system >/dev/null 2>&1 || true
             crontab -l 2>/dev/null | grep -v 'ddr-quota.sh' | crontab -
             iptables -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports 443 2>/dev/null || true
             iptables -t nat -D PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports 8443 2>/dev/null || true
-            echo -e "${GREEN}彻底卸载成功！已为您保留 'sb' 快捷指令。${NC}"
+            echo -e "${GREEN}彻底卸载成功！已为您保留 'sb' 快捷指令，随时可重装。${NC}"
             sleep 2 ;;
         0) clear; exit 0 ;;
         *) sleep 1 ;;
