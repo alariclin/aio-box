@@ -1,6 +1,4 @@
-# Sing-box- auto
-
-Sing-box 2026 终极一键部署脚本。
+# All-in-One Duo One-Click Deployment Script。
 
 ---
 
