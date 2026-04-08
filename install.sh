@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ====================================================================
-# Aio-box Ultimate Console [Xray-Hy2 Removed | Smart Uninstall Added]
-# Version: 2026.04.Apex-Stable-V54-Custom
+# Aio-box Ultimate Console [UI Aligned | Comprehensive Usage Guide]
+# Version: 2026.04.Apex-Stable-V55-Custom
 # ====================================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -164,6 +164,11 @@ pre_install_setup() {
     local DEF_H_PORT=443
     local DEF_S_PORT=2053
 
+    # [Xray 内核防崩逻辑]: Xray 无法支持双协议同时占用 443，故全家桶模式无 Hy2
+    if [[ "$CORE" == "xray" && "$MODE" == *"ALL"* ]]; then
+        DEF_H_PORT=8443
+    fi
+
     echo -e "\n${CYAN}======================================================================${NC}"
     echo -e "${BOLD}🚀 部署前向导 / Pre-deployment Wizard [Core: $CORE | Mode: $MODE]${NC}"
     echo -e "   默认防封 SNI / Default Anti-block SNI: ${GREEN}$AUTO_REALITY${NC}"
@@ -210,7 +215,6 @@ deploy_xray() {
     mkdir -p /usr/local/share/xray /usr/local/etc/xray
     mv /tmp/geoip.dat /usr/local/share/xray/; mv /tmp/geosite.dat /usr/local/share/xray/
     
-    # 完美修复两次生成导致公私钥错位的问题
     KEYPAIR=$(/usr/local/bin/xray x25519)
     PK=$(echo "$KEYPAIR" | grep -i "Private" | awk '{print $NF}')
     PBK=$(echo "$KEYPAIR" | grep -i "Public" | awk '{print $NF}')
@@ -460,19 +464,41 @@ EOF
 # --- [6] 说明书与自愈、OTA、智能卸载 功能 / Manual, Auto-fix & OTA ---
 show_usage() {
     clear; echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${BOLD}${GREEN}   Aio-box Ultimate 脚本说明书 / Usage Guide${NC}"
+    echo -e "${BOLD}${GREEN}   Aio-box Ultimate 说明书 / Detailed Usage Manual${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${YELLOW}1. 协议核心区别 (Protocol & Core Differences):${NC}"
-    echo -e "   - Sing-box (推荐/Rec): 完美支持所有协议，允许 VLESS 与 Hy2 共用 443 端口。"
-    echo -e "   - Xray-core (备选/Alt): 极度稳定。删除了对 Hy2 的支持，专注 TCP 和 SS。"
-    echo -e "${YELLOW}2. 客户端避坑指南 (Client Settings Warning):${NC}"
-    echo -e "   - VLESS 节点在客户端中，uTLS 选项必须修改为 chrome，否则连不上。"
-    echo -e "   - Hy2 节点在客户端中，必须开启 Allow Insecure (允许不安全/跳过证书验证)。"
-    echo -e "${YELLOW}3. 维护与卸载 (Maintenance & Uninstall):${NC}"
-    echo -e "   - 菜单 16 包含内核级环境修复功能，一键解决端口被占用、网络崩溃等疑难杂症。"
-    echo -e "   - 菜单 15 卸载选项已升级，支持仅卸载环境但保留脚本指令。"
-    echo -e "${CYAN}======================================================================${NC}\n"
-    read -ep "按回车返回主菜单 / Press Enter to return..."
+    
+    echo -e "${YELLOW}【一】核心部署指南 / Core & Protocol Deployment${NC}"
+    echo -e "   - Sing-box: 现代超级核心，支持全家桶(VLESS+Hy2+SS)完美共用 443 端口。"
+    echo -e "     (Modern super-core, perfectly supports VLESS+Hy2+SS sharing port 443.)"
+    echo -e "   - Xray-core: 经典稳定核心，专注 TCP/VLESS 与 SS，已移除对 Hy2 的支持。"
+    echo -e "     (Classic stable core, focused on TCP/VLESS and SS. Hy2 support removed.)"
+    echo -e "   - 建议 / Tip: 新手或全平台通用，请无脑选择 7. Sing-box 协议全家桶。"
+    echo -e "     (For beginners or all-platform compatibility, choose 7. Sing-box All-in-One.)\n"
+
+    echo -e "${YELLOW}【二】客户端连接禁忌 (极度重要) / Client Configuration Taboos (Crucial)${NC}"
+    echo -e "   1. VLESS-Reality 节点 / VLESS-Reality Nodes:"
+    echo -e "      - [禁忌/Taboo]: 绝对不能开启 Mux(多路复用)！否则会被 Vision 流控秒断。"
+    echo -e "        (NEVER enable Mux, or the Vision flow control will drop the connection.)"
+    echo -e "      - [必做/Must]: 小火箭/Clash 中，uTLS / 指纹 必须设置为 chrome。"
+    echo -e "        (In Shadowrocket/Clash, uTLS/fingerprint MUST be set to 'chrome'.)"
+    echo -e "   2. Hysteria 2 节点 / Hysteria 2 Nodes:"
+    echo -e "      - [必做/Must]: 必须开启“允许不安全”(Allow Insecure/Skip Cert Verify)。"
+    echo -e "        (MUST enable 'Allow Insecure' or 'Skip Cert Verify' due to self-signed certs.)\n"
+
+    echo -e "${YELLOW}【三】面板功能使用说明 / Panel Functions Guide${NC}"
+    echo -e "   - [11] VPS网络调优 / VPS Tuning: 部署后执行一次，开启 BBR 与百万级并发限制。"
+    echo -e "     (Run once after deployment to enable BBR and maximize connection limits.)"
+    echo -e "   - [13] 节点参数导出 / Export Nodes: 随时调出节点链接与二维码。切勿泄露！"
+    echo -e "     (Display node links and QR codes anytime. DO NOT leak them publicly!)"
+    echo -e "   - [14] 源码在线更新 / OTA Sync: 从 GitHub 一键拉取最新代码热更新。"
+    echo -e "     (One-click hot update from the latest GitHub repository.)"
+    echo -e "   - [15] 卸载选项 / Uninstall Options: 提供完全物理清场与保留命令的柔性卸载。"
+    echo -e "     (Provides both total nuclear wipe and soft uninstall keeping the 'sb' command.)"
+    echo -e "   - [16] 环境自愈 / Auto-Fix Audit: 遇到无法启动、端口死锁、网络卡死，一键杀毒恢复！"
+    echo -e "     (One-click fix for start failures, port deadlocks, or network crashes!)\n"
+    
+    echo -e "${CYAN}======================================================================${NC}"
+    read -ep " 按回车返回主菜单 / Press Enter to return to main menu..."
 }
 
 update_script() {
@@ -501,7 +527,7 @@ update_script() {
 clean_uninstall_menu() {
     clear
     echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${BOLD}${RED}   卸载清空选项 / Uninstall Options${NC}"
+    echo -e "${BOLD}${RED}   卸载选项 / Uninstall Options${NC}"
     echo -e "${CYAN}======================================================================${NC}"
     echo -e "${YELLOW}1. 完全卸载清空 (删除核心、配置、防火墙规则，并删除脚本快捷方式)${NC}"
     echo -e "   Complete uninstall (Removes everything including the 'sb' command)"
@@ -646,16 +672,16 @@ while true; do
     systemctl is-active --quiet xray && STATUS="${GREEN}Running (Xray)${NC}" || { systemctl is-active --quiet sing-box && STATUS="${CYAN}Running (Sing-box)${NC}" || STATUS="${RED}Stopped${NC}"; }
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V54 Custom Final] ${NC}\n${BLUE}======================================================================${NC}"
+    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V55 Custom Final] ${NC}\n${BLUE}======================================================================${NC}"
     echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}----------------------------------------------------------------------${NC}"
     echo -e " ${YELLOW}[ Xray-core 部署 / Deploy ]${NC}          ${CYAN}[ Sing-box 部署 / Deploy ]${NC}"
-    echo -e " ${GREEN}1.${NC} VLESS-Vision (Reality)         ${GREEN}5.${NC} VLESS-Vision (Reality)"
-    echo -e " ${RED}2.${NC} [已移除] Xray 不支持 Hy2       ${GREEN}6.${NC} Hysteria 2"
-    echo -e " ${GREEN}3.${NC} Shadowsocks                    ${GREEN}7.${NC} Shadowsocks"
-    echo -e " ${GREEN}4.${NC} VLESS + SS 双组合              ${GREEN}8.${NC} 协议全家桶 / All-in-One"
+    echo -e " ${GREEN}1.${NC} VLESS-Vision (Reality)         ${GREEN}4.${NC} VLESS-Vision (Reality)"
+    echo -e " ${GREEN}2.${NC} Shadowsocks                    ${GREEN}5.${NC} Hysteria 2"
+    echo -e " ${GREEN}3.${NC} VLESS + SS 组合                ${GREEN}6.${NC} Shadowsocks"
+    echo -e "                                  ${GREEN}7.${NC} 协议全家桶 / All-in-One"
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     echo -e " ${GREEN}11.${NC} VPS网络调优 / VPS Tuning      ${YELLOW}13.${NC} 节点参数导出 / Export Nodes"
-    echo -e " ${GREEN}12.${NC} 详细说明书 / Usage Guide      ${YELLOW}14.${NC} 源码在线更新 / OTA Sync"
+    echo -e " ${GREEN}12.${NC} 说明书 / Usage Guide          ${YELLOW}14.${NC} 源码在线更新 / OTA Sync"
     echo -e " ${CYAN}16.${NC} 环境自愈 / Auto-Fix Audit      ${RED}15.${NC} 卸载选项 / Uninstall Options"
     echo -e " ${GREEN}0.${NC} 退出面板 / Exit"
     echo -e "${BLUE}======================================================================${NC}"
@@ -663,17 +689,16 @@ while true; do
     
     local DEPLOY_MODE=""
     case $choice in
-        1|5) DEPLOY_MODE="VLESS" ;;
-        6) DEPLOY_MODE="HY2" ;;
-        3|7) DEPLOY_MODE="SS" ;;
-        4) DEPLOY_MODE="VLESS_SS" ;;
-        8) DEPLOY_MODE="ALL" ;;
+        1|4) DEPLOY_MODE="VLESS" ;;
+        5) DEPLOY_MODE="HY2" ;;
+        2|6) DEPLOY_MODE="SS" ;;
+        3) DEPLOY_MODE="VLESS_SS" ;;
+        7) DEPLOY_MODE="ALL" ;;
     esac
 
     case $choice in
-        1|3|4) deploy_xray "$DEPLOY_MODE" ;;
-        2) echo -e "${RED}Xray内核下已删除Hy2选项，请选择右侧的Sing-box安装。${NC}"; sleep 2 ;;
-        5|6|7|8) deploy_singbox "$DEPLOY_MODE" ;;
+        1|2|3) deploy_xray "$DEPLOY_MODE" ;;
+        4|5|6|7) deploy_singbox "$DEPLOY_MODE" ;;
         11) tune_vps ;; 
         12) show_usage ;;
         13) view_config ;; 
