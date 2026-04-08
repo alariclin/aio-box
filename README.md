@@ -42,26 +42,27 @@ sb
 ```
 
 ### 📂 架构一览
-引擎模式 (Engine),适用场景 (Use Case),核心技术点 (Highlights)
-⚡ Sing-box (主推),单端口全能复用,"原生 Hysteria 2 (Salamander 混淆), TCP/UDP 443 完美共存, 自动接口探测"
-🛡️ Xray-core (备选),极度稳定的纯净 TCP,"剔除底层冲突协议, 专注 TCP-Vision 极致流控与 Reality 动态握手"
+| 引擎模式 (Engine),适用场景 (Use Case),核心技术点 (Highlights)
+| ⚡ Sing-box (主推),单端口全能复用,"原生 Hysteria 2 (Salamander 混淆), TCP/UDP 443 完美共存, 自动接口探测"
+| 🛡️ Xray-core (备选),极度稳定的纯净 TCP,"剔除底层冲突协议, 专注 TCP-Vision 极致流控与 Reality 动态握手"
 ---
 
 <a name="-english-description"></a>
+
 ## English Description
 
-**Aio-boxo** is a high-availability, robust deployment environment designed for network security and routing optimization. Built on a dual-core architecture, it seamlessly integrates Xray-core and Sing-box, featuring automated YAML topology generation, offline core caching, and kernel-level TCP/BBR tuning.
+**Aio-box** is a high-availability, robust deployment environment designed for network security and routing optimization. Built on a dual-core architecture, it perfectly integrates **Xray-core** and **Sing-box**, completely resolving kernel deadlock issues, while offering hardware-level anti-blocking, system-wide connection limits tuning, and automated environment auto-fix capabilities.
 
 ### ✨ Key Features
-* **TCP/UDP 443 Dual-Stack Multiplexing**: Seamlessly enables VLESS (TCP) and Hysteria 2 (UDP) to share a single physical port 443, offering unparalleled obfuscation and boosting connection success rates.
-* **Next-Generation Routing Protocol Engine**: Natively powered by Xray v26.3.27, featuring built-in Sing-box Port Hopping (NAT Hopping) and robust Chrome fingerprint validation to effectively thwart DPI detection.
-* **Dynamic SNI & Self-Signed Certificates**: Supports custom private domains and automatically generates detection-resistant, 100-year self-signed security certificates based on the user-provided SNI.
-* **High-Availability Local Execution**: The `sb` shortcut command executes locally on the device; equipped with an offline core cache, it remains completely immune to remote access failures or network fluctuations.
-* **Automatic Privilege Escalation & Fail-Safe Design**: The script automatically acquires Root privileges and incorporates safeguards to prevent garbled text from backspace inputs or accidental crashes, delivering an exceptionally smooth and seamless interaction experience for power users.
+* **Sing-box Modern Omni-Architecture**: Flawlessly multiplexes VLESS (TCP 443) and Hysteria 2 (UDP 443) over a single physical port. Its native architecture prevents port-binding deadlocks, maximizing connection success rates.
+* **Xray-core Ultra-Pure Mode**: Stripped of incompatible UDP protocol injections, focusing strictly on providing the most stable TCP/VLESS-Vision and Shadowsocks links—a rock-solid backup for heavily censored regions.
+* **Auto-Fix Kernel Audit**: A pioneering environmental audit tool that kills zombie processes, flushes NAT traffic blackholes (iptables hijack remnants), and purges corrupt config files with a single click.
+* **Million-Level Concurrency Tuning**: Enables BBR congestion control and automatically pushes VPS TCP windows and system file descriptors (`fs.file-max`) to the extreme limit of 1,048,576.
+* **OTA Sync & Smart Uninstall**: Supports one-click hot-updating from the GitHub repo. Provides a dual-track uninstallation process: a "nuclear wipe" or a "soft wipe" that retains the console shortcut.
 
 ### 🚀 Quick Start
 
-**Global High-Speed ​​Channel (Recommended for Overseas Servers):**
+**Global High-Speed Channel (Recommended for Overseas Servers):**
 ```bash
 sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
 ```
