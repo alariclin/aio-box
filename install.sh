@@ -35,7 +35,7 @@ setup_shortcut() {
 }
 
 check_env() {
-    if ! command -v jq >/dev/null || ! command -v unzip >/dev/null || ! command -v iptables >/dev/null; then
+    if ! command -v jq >/dev/null || ! command -v vnstat >/dev/null || ! command -v iptables >/dev/null; then
         echo -e "${YELLOW}[*] 正在同步系统依赖环境... / Syncing dependencies...${NC}"
         apt-get update -y -q || yum makecache -y -q
         local deps=(wget curl jq openssl uuid-runtime cron fail2ban python3 bc unzip vnstat iptables)
@@ -69,10 +69,10 @@ pre_install_setup() {
     elif [[ "$ASN_UPPER" == *"MICROSOFT"* || "$ASN_UPPER" == *"AZURE"* ]]; then AUTO_REALITY="dl.delivery.mp.microsoft.com"
     else AUTO_REALITY="www.microsoft.com"; fi
 
-    echo -e "\n${CYAN}======================================================${NC}"
+    echo -e "\n${CYAN}======================================================================${NC}"
     echo -e "${BOLD}🚀 部署前向导：自定义伪装域名 (SNI) 与物理端口${NC}"
     echo -e "   系统推荐防封 SNI: ${GREEN}$AUTO_REALITY${NC}"
-    echo -e "${BLUE}------------------------------------------------------${NC}"
+    echo -e "${BLUE}----------------------------------------------------------------------${NC}"
 
     if [[ "$MODE" == *"VLESS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
         echo -e "${BOLD}[VLESS-Vision] 设置 / Setup${NC}"
@@ -80,7 +80,7 @@ pre_install_setup() {
         VLESS_SNI=${INPUT_V_SNI:-$AUTO_REALITY}
         read -ep "   请输入 VLESS 监听端口 (回车默认 443): " INPUT_V_PORT
         VLESS_PORT=${INPUT_V_PORT:-443}
-        echo -e "${BLUE}------------------------------------------------------${NC}"
+        echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     fi
 
     if [[ "$MODE" == *"HY2"* ]] || [[ "$MODE" == *"ALL"* ]]; then
@@ -89,7 +89,7 @@ pre_install_setup() {
         HY2_SNI=${INPUT_H_SNI:-$AUTO_REALITY}
         read -ep "   请输入 HY2 监听端口 (回车默认 443): " INPUT_H_PORT
         HY2_PORT=${INPUT_H_PORT:-443}
-        echo -e "${BLUE}------------------------------------------------------${NC}"
+        echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     fi
 
     if [[ "$MODE" == *"SS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
@@ -97,7 +97,7 @@ pre_install_setup() {
         read -ep "   请输入 SS 备用监听端口 (回车默认 2053): " INPUT_S_PORT
         SS_PORT=${INPUT_S_PORT:-2053}
     fi
-    echo -e "${CYAN}======================================================${NC}\n"
+    echo -e "${CYAN}======================================================================${NC}\n"
 
     # 安全回退校验
     VLESS_SNI=${VLESS_SNI:-$AUTO_REALITY}; HY2_SNI=${HY2_SNI:-$AUTO_REALITY}
@@ -238,10 +238,10 @@ ENV_EOF
 
 # --- [3] 系统维护功能 ---
 show_usage() {
-    clear; echo -e "${CYAN}======================================================${NC}"
+    clear; echo -e "${CYAN}======================================================================${NC}"
     echo -e "${BOLD}${GREEN}   Aio-box Ultimate 脚本详细功能与使用说明${NC}"
     echo -e "${BOLD}${GREEN}   Aio-box Ultimate Features & Usage Guide${NC}"
-    echo -e "${CYAN}======================================================${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
     echo -e "${YELLOW}[中文说明]${NC}"
     echo -e "1-8. 协议部署: 支持 Xray-core 与 Sing-box 核心。可单选或三合一安装。"
     echo -e "     - VLESS-Vision: 顶级 TCP 伪装，防主动探测与精确识别。"
@@ -269,7 +269,7 @@ show_usage() {
     echo -e "13.  Topology: View current configurations, URI links, and Clash Meta YAML structures."
     echo -e "14.  OTA Update: Hot-sync the latest script from GitHub without losing existing configs."
     echo -e "15.  Uninstall: Complete physical purge of cores, configs, daemons, and ghost NAT rules."
-    echo -e "${CYAN}======================================================${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
     read -ep "按回车返回主菜单 / Press Enter to return..."
 }
 
@@ -322,8 +322,8 @@ EOF
 view_config() {
     local CALLER=$1; clear; [[ ! -f /etc/ddr/.env ]] && { echo -e "${RED}未检测到配置！${NC}"; sleep 2; return 0; }
     source /etc/ddr/.env
-    echo -e "${BLUE}======================================================${NC}\n${BOLD}${CYAN}   协议全部节点参数 (${MODE}) / All Protocol Parameters ${NC}\n${BLUE}======================================================${NC}"
-    echo -e "${BOLD}Engine:${NC} $CORE | ${BOLD}Mode:${NC} $MODE\n${BLUE}------------------------------------------------------${NC}"
+    echo -e "${BLUE}======================================================================${NC}\n${BOLD}${CYAN}   协议全部节点参数 (${MODE}) / All Protocol Parameters ${NC}\n${BLUE}======================================================================${NC}"
+    echo -e "${BOLD}Engine:${NC} $CORE | ${BOLD}Mode:${NC} $MODE\n${BLUE}----------------------------------------------------------------------${NC}"
     
     if [[ "$MODE" == *"VLESS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
         echo -e "${YELLOW}[ VLESS-Vision 通用链接 ]${NC}\nvless://$UUID@$LINK_IP:$VLESS_PORT?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$VLESS_SNI&fp=chrome&pbk=$PUBLIC_KEY&sid=$SHORT_ID&type=tcp#Aio-VLESS\n"
@@ -382,16 +382,26 @@ while true; do
     systemctl is-active --quiet xray && STATUS="${GREEN}Running (Xray)${NC}" || { systemctl is-active --quiet sing-box && STATUS="${CYAN}Running (Sing-box)${NC}" || STATUS="${RED}Stopped${NC}"; }
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V28 Ultimate] ${NC}\n${BLUE}======================================================${NC}"
-    echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}------------------------------------------------------${NC}"
-    echo -e " ${YELLOW}--- Xray-core 部署引擎 ---${NC}        ${CYAN}--- Sing-box  部署引擎 ---${NC}\n ${GREEN}1.${NC} 部署 VLESS-Vision (REALITY)    ${GREEN}5.${NC} 部署 VLESS-Vision (REALITY)\n ${GREEN}2.${NC} 部署 Hysteria 2               ${GREEN}6.${NC} 部署 Hysteria 2\n ${GREEN}3.${NC} 部署 Shadowsocks              ${GREEN}7.${NC} 部署 Shadowsocks\n ${GREEN}4.${NC} 部署 协议全家桶 (三合一)        ${GREEN}8.${NC} 部署 协议全家桶 (三合一)\n${BLUE}------------------------------------------------------${NC}"
-    echo -e " ${YELLOW}9.${NC}  流量监控与熔断护卫 / Quota      ${GREEN}10.${NC} 本机参数与网络诊断测速\n ${GREEN}11.${NC} VPS全面优化 / VPS Tuning       ${YELLOW}12.${NC} 脚本详细功能与使用说明 / Guide\n ${YELLOW}13.${NC} 协议全部节点参数 / Topology    ${YELLOW}14.${NC} 脚本源码 OTA 热更新 / Update\n ${RED}15.${NC} 彻底清空卸载环境 / Purge       ${GREEN}0.${NC}  退出面板 / Exit Dashboard\n${BLUE}======================================================${NC}"
-    read -ep " 请选择 [0-15]: " choice
+    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V28 Ultimate] ${NC}\n${BLUE}======================================================================${NC}"
+    echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}----------------------------------------------------------------------${NC}"
+    echo -e " ${YELLOW}[ Xray-core 部署 / Deploy ]${NC}       ${CYAN}[ Sing-box 部署 / Deploy ]${NC}"
+    echo -e " ${GREEN}1.${NC} VLESS-Vision (REALITY)          ${GREEN}5.${NC} VLESS-Vision (REALITY)"
+    echo -e " ${GREEN}2.${NC} Hysteria 2                      ${GREEN}6.${NC} Hysteria 2"
+    echo -e " ${GREEN}3.${NC} Shadowsocks                     ${GREEN}7.${NC} Shadowsocks"
+    echo -e " ${GREEN}4.${NC} 协议全家桶 / All-in-One         ${GREEN}8.${NC} 协议全家桶 / All-in-One"
+    echo -e "${BLUE}----------------------------------------------------------------------${NC}"
+    echo -e " ${YELLOW}[ 系统与维护 / System & Management ]${NC}"
+    echo -e " ${GREEN}9.${NC}  流量监控与熔断 / Quota Guard    ${GREEN}10.${NC} 网络诊断测速 / Diagnostics"
+    echo -e " ${GREEN}11.${NC} VPS 全面优化 / VPS Tuning       ${GREEN}12.${NC} 详细功能说明 / Usage Guide"
+    echo -e " ${YELLOW}13.${NC} 全部节点参数 / Export Nodes     ${YELLOW}14.${NC} 源码 OTA 更新 / OTA Update"
+    echo -e " ${RED}15.${NC} 彻底清空卸载 / Clean Purge      ${GREEN}0.${NC}  退出面板 / Exit Dashboard"
+    echo -e "${BLUE}======================================================================${NC}"
+    read -ep " 请选择 / Please select [0-15]: " choice
     case $choice in
         1|2|3|4) deploy_xray "$([[ $choice == 1 ]] && echo VLESS || [[ $choice == 2 ]] && echo HY2 || [[ $choice == 3 ]] && echo SS || echo ALL)" ;;
         5|6|7|8) deploy_singbox "$([[ $choice == 5 ]] && echo VLESS || [[ $choice == 6 ]] && echo HY2 || [[ $choice == 7 ]] && echo SS || echo ALL)" ;;
         9) setup_quota ;; 10) diagnostics ;; 11) tune_vps ;; 12) show_usage ;; 13) view_config "" ;; 
-        14) setup_shortcut "update"; echo -e "OTA 成功。"; exit 0 ;;
+        14) setup_shortcut "update"; echo -e "OTA 成功。 / OTA Successful."; exit 0 ;;
         15) clean_uninstall ;; 0) clear; exit 0 ;; *) sleep 1 ;;
     esac
 done
