@@ -40,13 +40,6 @@ sudo bash -c "$(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alaric
 ```bash
 sb
 ```
-
-### 📂 架构一览
-| 引擎模式 (Engine),适用场景 (Use Case),核心技术点 (Highlights)
-| ⚡ Sing-box (主推),单端口全能复用,"原生 Hysteria 2 (Salamander 混淆), TCP/UDP 443 完美共存, 自动接口探测"
-| 🛡️ Xray-core (备选),极度稳定的纯净 TCP,"剔除底层冲突协议, 专注 TCP-Vision 极致流控与 Reality 动态握手"
----
-
 <a name="-english-description"></a>
 
 ## English Description
@@ -71,12 +64,6 @@ Once installation is complete, simply enter the following command in the termina
 ```bash
 sb
 ```
-### 📂 Architecture Overview
-| Engine Base | Target Use Case | Technical Highlights |
-| :--- | :--- | :--- |
-| **🛡️ Xray-core** | Strong Privacy | `TCP-Vision` flow control, REALITY dynamic padding |
-| **⚡ Sing-box** | High Concurrency | ACME automation, Port-hopping, Multiplexing |
-
 ## ⚠️ 系统要求 / System Requirements
 * **OS**: Debian 10+, Ubuntu 20.04+, CentOS 8+, AlmaLinux.
 * **Init System**: Systemd is strictly required for daemon persistence.
