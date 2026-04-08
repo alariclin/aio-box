@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ====================================================================
 # Aio-box Ultimate Console [Strict 443 & Nuclear Purge Edition]
-# Version: 2026.04.Apex-Stable-V38.1-Pro-Patch
+# Version: 2026.04.Apex-Stable-V38.2-Pro-Final
 # ====================================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -121,8 +121,8 @@ release_ports() {
     systemctl stop xray sing-box hysteria 2>/dev/null || true
     killall -9 xray sing-box hysteria 2>/dev/null || true
     
-    local ports_to_clean=($VLESS_PORT $HY2_PORT $SS_PORT)
-    for p in "${ports_to_clean[@]}"; do
+    local ports_to_clean=($VLESS_PORT $HY2_PORT $SS_PORT 443 2053)
+    for p in $(echo "${ports_to_clean[@]}" | tr ' ' '\n' | sort -u); do
         fuser -k -9 ${p}/tcp 2>/dev/null || true
         fuser -k -9 ${p}/udp 2>/dev/null || true
         lsof -ti:${p} | xargs kill -9 2>/dev/null || true
@@ -151,7 +151,6 @@ deploy_xray() {
     mkdir -p /usr/local/etc/xray; openssl ecparam -genkey -name prime256v1 -out /usr/local/etc/xray/hy2.key 2>/dev/null
     openssl req -new -x509 -days 36500 -key /usr/local/etc/xray/hy2.key -out /usr/local/etc/xray/hy2.crt -subj "/CN=${HY2_SNI}" 2>/dev/null
 
-    # [终极补丁]：补回了 Xray VLESS 协议强依赖的 "decryption": "none" 字段
     JSON_VLESS='{ "listen": "0.0.0.0", "port": '$VLESS_PORT', "protocol": "vless", "settings": { "clients": [{"id": "'$UUID'", "flow": "xtls-rprx-vision"}], "decryption": "none" }, "streamSettings": { "network": "tcp", "security": "reality", "realitySettings": { "dest": "'$VLESS_SNI':443", "serverNames": ["'$VLESS_SNI'"], "privateKey": "'$PK'", "shortIds": ["'$SHORT_ID'"] } } }'
     JSON_HY2='{ "listen": "0.0.0.0", "port": '$HY2_PORT', "protocol": "hysteria", "tag": "hy2-in", "settings": { "auth": "pass", "auth_str": "'$HY2_PASS'", "obfs": "salamander", "obfs_password": "'$HY2_OBFS'", "certificates": [{ "certificateFile": "/usr/local/etc/xray/hy2.crt", "keyFile": "/usr/local/etc/xray/hy2.key" }] } }'
     JSON_SS='{ "listen": "0.0.0.0", "port": '$SS_PORT', "protocol": "shadowsocks", "settings": { "method": "2022-blake3-aes-128-gcm", "password": "'$SS_PASS'", "network": "tcp,udp" } }'
@@ -249,7 +248,7 @@ show_usage() {
     echo -e "11.  VPS优化: 解除 Linux 最大连接数限制，开启 BBR-Brutal 加速。"
     echo -e "13.  节点参数: 随时查看当前已安装的配置信息及通用 URI 链接。"
     echo -e "14.  OTA更新: 一键同步 GitHub 最新版脚本代码并无损热更新。"
-    echo -e "15.  彻底卸载: 物理清除所有核心、配置、服务进程及底层的 NAT 残留规则。\n"
+    echo -e "15.  彻底卸载: 核弹级物理清理，强制斩杀顽固进程并重置防火墙。\n"
     read -ep "按回车返回主菜单 / Press Enter to return..."
 }
 
@@ -339,9 +338,10 @@ clean_uninstall() {
     echo -e "${YELLOW}[*] 正在粉碎 iptables/NAT 残留链...${NC}"
     $ipt_cmd -t nat -F PREROUTING 2>/dev/null || true
     $ip6t_cmd -t nat -F PREROUTING 2>/dev/null || true
+    $ipt_cmd -F INPUT 2>/dev/null || true
     
     echo -e "${YELLOW}[*] 正在销毁物理文件与系统服务...${NC}"
-    rm -rf /usr/local/etc/xray /etc/sing-box /usr/local/bin/xray /usr/local/bin/sing-box /etc/systemd/system/xray.service /etc/systemd/system/sing-box.service /etc/systemd/system/hysteria.service
+    rm -rf /usr/local/etc/xray /etc/sing-box /usr/local/bin/xray /usr/local/bin/sing-box /etc/systemd/system/xray.service /etc/systemd/system/sing-box.service /etc/systemd/system/hysteria.service /usr/local/bin/hysteria /etc/hysteria
     systemctl daemon-reload
     
     if [[ "$clean_choice" == "2" ]]; then
@@ -361,7 +361,7 @@ while true; do
     systemctl is-active --quiet xray && STATUS="${GREEN}Running (Xray)${NC}" || { systemctl is-active --quiet sing-box && STATUS="${CYAN}Running (Sing-box)${NC}" || STATUS="${RED}Stopped${NC}"; }
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V38.1 Ultimate] ${NC}\n${BLUE}======================================================================${NC}"
+    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V38.2 Pro Final] ${NC}\n${BLUE}======================================================================${NC}"
     echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}----------------------------------------------------------------------${NC}"
     echo -e " ${YELLOW}[ Xray-core 部署 / Deploy ]${NC}       ${CYAN}[ Sing-box 部署 / Deploy ]${NC}"
     echo -e " ${GREEN}1.${NC} VLESS-Vision (REALITY)          ${GREEN}5.${NC} VLESS-Vision (REALITY)"
