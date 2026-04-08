@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ====================================================================
-# Aio-box Ultimate Console [Sing-box v1.13+ Fixed | OTA Added | Bilingual]
-# Version: 2026.04.Apex-Stable-V52-Ultimate
+# Aio-box Ultimate Console [Keypair Logic Fixed | Syntax Fixed]
+# Version: 2026.04.Apex-Stable-V53-Ultimate
 # ====================================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -79,7 +79,7 @@ check_env() {
 
 setup_shortcut() {
     mkdir -p /etc/ddr
-    if [[ ! -f /etc/ddr/aio.sh ]]; then
+    if [[ ! -f /etc/ddr/aio.sh || "$1" == "update" ]]; then
         curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh > /etc/ddr/aio.sh
         chmod +x /etc/ddr/aio.sh
     fi
@@ -160,12 +160,11 @@ pre_install_setup() {
     local MODE=$2
     AUTO_REALITY="www.microsoft.com"
 
-    # Default Port Setup Based on User Logic
     local DEF_V_PORT=443
     local DEF_H_PORT=443
     local DEF_S_PORT=2053
 
-    # [Xray 内核防崩逻辑]: 如果是 Xray 且为全家桶，Hy2 强制引导为 8443
+    # [Xray 内核防崩逻辑]: Xray 全家桶模式下，Hy2 强制引导为 8443
     if [[ "$CORE" == "xray" && "$MODE" == *"ALL"* ]]; then
         DEF_H_PORT=8443
     fi
@@ -216,7 +215,11 @@ deploy_xray() {
     mkdir -p /usr/local/share/xray /usr/local/etc/xray
     mv /tmp/geoip.dat /usr/local/share/xray/; mv /tmp/geosite.dat /usr/local/share/xray/
     
-    PK=$(/usr/local/bin/xray x25519 | grep -i "Private" | awk '{print $NF}'); PBK=$(/usr/local/bin/xray x25519 | grep -i "Public" | awk '{print $NF}')
+    # [Bug Fix]: 完美修复两次生成导致公私钥错位的问题
+    KEYPAIR=$(/usr/local/bin/xray x25519)
+    PK=$(echo "$KEYPAIR" | grep -i "Private" | awk '{print $NF}')
+    PBK=$(echo "$KEYPAIR" | grep -i "Public" | awk '{print $NF}')
+    
     UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4 | tr -d '\n\r'); SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r')
     HY2_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9'); HY2_OBFS=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9')
     
@@ -235,7 +238,7 @@ deploy_xray() {
     }
 EOF
 )
-    # Xray 核心强制去除 Hysteria 的 Obfs 以免引发 invalid padding length 导致崩溃
+    # Xray 核心强制去除 Hysteria 的 Obfs 以防解析失败崩溃
     JSON_HY2=$(cat << EOF
     {
       "listen": "::", "port": ${HY2_PORT}, "protocol": "hysteria", "tag": "hy2-in",
@@ -313,8 +316,10 @@ deploy_singbox() {
     fetch_github_release "SagerNet/sing-box" "linux-${SB_ARCH}.tar.gz" "singbox_core.tar.gz"
     tar -xzf "/tmp/singbox_core.tar.gz" -C /tmp; mv /tmp/sing-box-*/sing-box /usr/local/bin/; chmod +x /usr/local/bin/sing-box
 
-    PK=$(/usr/local/bin/sing-box generate reality-keypair | grep -i "Private" | awk '{print $NF}')
-    PBK=$(/usr/local/bin/sing-box generate reality-keypair | grep -i "Public" | awk '{print $NF}')
+    # [Bug Fix]: 完美修复两次生成导致公私钥错位的问题
+    KEYPAIR=$(/usr/local/bin/sing-box generate reality-keypair)
+    PK=$(echo "$KEYPAIR" | grep -i "Private" | awk '{print $NF}')
+    PBK=$(echo "$KEYPAIR" | grep -i "Public" | awk '{print $NF}')
     if [[ -z "$PK" ]]; then echo -e "${RED}[!] 核心不兼容 / Core incompatible.${NC}"; exit 1; fi
 
     UUID=$(uuidgen); SHORT_ID=$(openssl rand -hex 4 | tr -d '\n\r'); SS_PASS=$(openssl rand -base64 16 | tr -d '\n\r')
@@ -323,7 +328,6 @@ deploy_singbox() {
     mkdir -p /etc/sing-box; openssl ecparam -genkey -name prime256v1 -out /etc/sing-box/hy2.key 2>/dev/null
     openssl req -new -x509 -days 36500 -key /etc/sing-box/hy2.key -out /etc/sing-box/hy2.crt -subj "/CN=${HY2_SNI}" 2>/dev/null
 
-    # [Sing-box 1.13.0+ Bug Fix]: 彻底移除过时的 sniff 字段，采用兼容语法
     JSON_VLESS=$(cat << EOF
     {
       "type": "vless", "listen": "::", "listen_port": ${VLESS_PORT}, "tcp_fast_open": true,
@@ -490,7 +494,7 @@ show_usage() {
     echo -e "   - Sing-box (推荐/Rec): 完美支持所有协议，允许 VLESS 与 Hy2 共用 443 端口。"
     echo -e "   - Xray-core (备选/Alt): 极度稳定。在全家桶模式下，Hy2 会被强制分配至 8443 端口以防内核死锁。"
     echo -e "${YELLOW}2. 客户端避坑指南 (Client Settings Warning):${NC}"
-    echo -e "   - VLESS 节点在 Shadowrocket 中，uTLS 选项必须修改为 chrome，否则连不上。"
+    echo -e "   - VLESS 节点在客户端中，uTLS 选项必须修改为 chrome，否则连不上。"
     echo -e "   - Hy2 节点在客户端中，必须开启 Allow Insecure (允许不安全/跳过证书验证)。"
     echo -e "${YELLOW}3. 维护与自愈 (Maintenance & Auto-Fix):${NC}"
     echo -e "   - 菜单 16 包含内核级环境修复功能，一键解决端口被占用、网络崩溃等疑难杂症。"
@@ -642,7 +646,7 @@ while true; do
     systemctl is-active --quiet xray && STATUS="${GREEN}Running (Xray)${NC}" || { systemctl is-active --quiet sing-box && STATUS="${CYAN}Running (Sing-box)${NC}" || STATUS="${RED}Stopped${NC}"; }
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V52 Bilingual Final] ${NC}\n${BLUE}======================================================================${NC}"
+    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V53 Ultimate] ${NC}\n${BLUE}======================================================================${NC}"
     echo -e " IP: ${YELLOW}$IPV4${NC} | STATUS: $STATUS $CUR_MODE\n${BLUE}----------------------------------------------------------------------${NC}"
     echo -e " ${YELLOW}[ Xray-core 部署 / Deploy ]${NC}          ${CYAN}[ Sing-box 部署 / Deploy ]${NC}"
     echo -e " ${GREEN}1.${NC} VLESS-Vision (Reality)         ${GREEN}5.${NC} VLESS-Vision (Reality)"
@@ -657,8 +661,7 @@ while true; do
     echo -e "${BLUE}======================================================================${NC}"
     read -ep " 请选择 / Please select: " choice
     
-    # 完美路由判定，确保单选模式下不乱跳对话框
-    local DEPLOY_MODE=""
+    DEPLOY_MODE=""
     case $choice in
         1|5) DEPLOY_MODE="VLESS" ;;
         2|6) DEPLOY_MODE="HY2" ;;
