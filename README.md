@@ -25,6 +25,7 @@
 4. [🛠️ 运维与管理](#-ops-cn)
 5. [❓ 常见问题 (FAQ)](#-faq-cn)
 
+<a name="-features-cn"></a>
 ### ✨ 核心特性
 
 * **全栈协议整合与端口拟态**: 自动化部署最新一代网络路由核心（VLESS-Vision、Hysteria 2、Shadowsocks），支持复杂的协议栈整合。通过内核级转发，实现同一物理端口（如 443）的高效复用与拟态伪装。
@@ -33,6 +34,7 @@
 * **高优测速与信誉审计**: 面板深度集成全球公认的基准测试组件：`bench.sh`（全面评估 CPU、I/O 与国际网关速率）与 `Check.Place`（深入探查 IP 的欺诈评分与原生解锁纯净度）。
 * **无痕清场与原子级 OTA**: 提供零残留的“外科手术级卸载”机制，绝不残留暗病。支持从 GitHub 云端秒级热更新（OTA），确保底层架构永远保持最新。
 
+<a name="-arch-cn"></a>
 ### 🏗️ 架构对比
 
 本控制台提供两种顶级的运行架构，以满足不同资源与网络环境的需求：
@@ -45,7 +47,7 @@
 | **协议分配** | Xray 独占 TCP；Hy2 独占 UDP | Sing-box 内部虚拟分发 |
 | **适用场景** | 追求绝对的吞吐量上限与极高并发 | 小内存机器 (如 256M/512M VPS) |
 
-
+<a name="-deploy-cn"></a>
 ### 🚀 快速部署
 
 无需手动切换用户，请直接在终端复制并执行以下一键安装指令（指令已物理纯化，可直接粘贴）：
@@ -59,13 +61,52 @@ sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/mai
 ```bash
 sudo bash -c "$(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
 ```
+
+<a name="-ops-cn"></a>
 #### ⚡ 全局管理
 安装完成后，在终端输入以下指令即可瞬间唤醒中控面板（支持离线唤醒）：
 ```bash
 sb
 ```
-<a name="-english-description"></a>
 
+<details>
+<summary><b>点击查看面板菜单速览 (V56 逻辑)</b></summary>
+
+1-10: 核心架构编排 - 分别对应 Xray (1-5) 与 Sing-box (6-10) 的部署组合。
+
+11: 系统 Benchmark & IP 审计 - 启动 bench.sh 与 Check.Place 跑分。
+
+12: VPS 一键优化 - 物理注入 BBR 算法并提升内核并发句柄。
+
+13: 节点参数显示 - 以明文及 Clash Meta YAML 格式输出当前拓扑配置。
+
+14: 脚本说明书 - 查阅针对 VLESS-Vision 指纹对齐及 Hy2 证书避坑指南。
+
+15: 脚本 OTA 升级 - 热加载 GitHub 最新发行版源码。
+
+16: 一键清空卸载 - 执行防御式卸载，物理销毁残留碎片。
+
+17: 环境自愈 (Auto-Fix) - 扫描死锁、清理脏路由、连通性探测。
+
+</details>
+
+<a name="-faq-cn"></a>
+
+❓ 常见问题 (FAQ)
+Q: VLESS 节点为什么连上后瞬间断开？
+
+A: 脚本强制启用了 xtls-rprx-vision。客户端严禁开启 Mux（多路复用），伪装指纹（Fingerprint）必须设置为 chrome。
+
+Q: 为什么 Alpine 系统上优化内核会失败？
+
+A: V56 版本已完美修复此问题。脚本会智能回退并手动注入配置，实现 100% 优化成功率。
+
+Q: 卸载会损坏 Docker 规则吗？
+
+A: 绝对不会。脚本采用正则精准锚定清理带有 Aio-box- 注释的规则，不使用野蛮的 iptables -F。
+
+
+<a name="-english-description"></a>
 
 
 # 📦 Aio-box
