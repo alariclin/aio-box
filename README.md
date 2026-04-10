@@ -84,7 +84,7 @@ sb
 
 <a name="-faq-cn"></a>
 
-### ❓ 常见问题 (FAQ)
+### ❓ 常见问题
 
 * **Q: VLESS 节点为什么连上后瞬间断开？**
   * **A:** 脚本强制启用了 `xtls-rprx-vision`。客户端严禁开启 `Mux`（多路复用），伪装指纹（Fingerprint）必须设置为 `chrome`。
@@ -165,7 +165,7 @@ sb
 
 ---
 <a name="-frequently-asked-questions-faq"></a>
-### ❓ Frequently Asked Questions (FAQ)
+### ❓ Frequently Asked Questions
 
 * **Q: Why does the VLESS node disconnect immediately after connecting?**
   * **A:** The VLESS deployment strictly enforces `xtls-rprx-vision` flow control. In your client (e.g., Shadowrocket, v2rayN), you **must not enable** `Mux` (multiplexing), or the packets will be dropped by the Vision filter. Additionally, ensure the camouflage fingerprint (uTLS/Fingerprint) is strictly set to `chrome`.
