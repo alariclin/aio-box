@@ -1,4 +1,4 @@
-# 📦 Aio-box Ultimate Console
+# 📦 Aio-box
 
 - **[📖 中文说明](#-中文说明) | [🌐 English Description](#-english-description)**
 - **致谢 / Credits:** 感谢开源社区中优秀的网络路由与加密项目（如 Xray-core、Sing-box、Hysteria 等）提供的底层技术启发与支持。本项目为独立的学习与自动化运维工具。 / We express our gratitude to excellent open-source projects for their technical inspiration. This project is an independent tool for learning and automated deployment.
@@ -66,20 +66,59 @@ sb
 ```
 <a name="-english-description"></a>
 
-## English Description
 
-**Aio-box is an automated operations script focused on Linux server network environment configuration, security hardening, and routing optimization. This project aims to simplify the complex deployment of network protocol stacks (such as TCP/UDP multiplexing) through one-click execution. It also provides low-level system parameter tuning and environmental self-diagnostic repair features, making it suitable for network security research, technical testing, and automated server management.
 
-Disclaimer: This project is intended strictly for educational, research, and technical exchange purposes. Users must comply with the laws and regulations of their respective countries and regions when using this script. The user bears full responsibility for any consequences arising from improper use.
+# 📦 Aio-box Ultimate Console
+
+- **致谢 / Credits:** We express our deepest gratitude to the excellent open-source network routing and encryption projects (such as Xray-core, Sing-box, Hysteria, etc.) for providing the underlying technical inspiration and support. This project is an independent tool designed for technical learning and automated operations.
+
+[![Version](https://img.shields.io/badge/Version-Apex_V56-success.svg?style=flat-square)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/alariclin/aio-box?style=flat-square&color=yellow)](https://github.com/alariclin/aio-box/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/alariclin/aio-box?style=flat-square&color=orange)](https://github.com/alariclin/aio-box/network/members)
+
+---
+
+## 🌐 Project Introduction
+
+**Aio-box** is an enterprise-grade automated operations environment focused on Linux server network configuration, security hardening, and routing optimization. This project aims to resolve concurrency and conflict issues between heterogeneous network protocol stacks on the same host through high-fidelity automation scripts. With built-in kernel-level parameter tuning and a pioneering "White-box Self-Healing" mechanism, it serves as an ideal scaffold for network security research, full-stack technical testing, and automated DevOps management.
+
+> **⚠️ Compliance & Disclaimer**: This project is intended strictly for network architecture research, cryptographic protocol study, and technical exchange. Use for any illegal purposes is strictly prohibited. Users must strictly comply with the laws and regulations of their respective jurisdictions. The user bears full responsibility for any direct or indirect consequences arising from improper use.
+
+---
+
+### 📑 Table of Contents
+1. [✨ Key Features](#-key-features)
+2. [🏗️ Architecture Comparison](#-architecture-comparison)
+3. [🚀 Quick Start](#-quick-start)
+4. [🛠️ Management & Operations](#-management--operations)
+5. [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+
+---
 
 ### ✨ Key Features
-* Modern Network Protocol Integration: Automates the deployment of next-generation routing cores (supporting protocols like VLESS, Hysteria 2, and Shadowsocks), achieving efficient port multiplexing (e.g., concurrent TCP and UDP on a single port) to optimize connection efficiency.
-* High Availability & Process Isolation: Offers flexible Dual-Core (Hybrid) or Single-Core (Sing-box) deployment modes. The script logically isolates different service processes to effectively prevent port conflicts (deadlocks) and ensure continuous service operation.
-* Auto-Fix Environmental Diagnostics: Features an innovative white-box diagnostic mechanism. With a single click, it identifies and purges zombie processes, resolves port deadlocks, clears erroneous network forwarding rules, and restores the system's network configuration to a pristine state.
-* Linux Kernel Performance Unleashed: Includes an automated tuning module that enables the BBR congestion control algorithm and intelligently elevates system resource limits (e.g., adjusting file descriptors fs.file-max and ulimit to their maximum theoretical values) to maximize network throughput.
-* Comprehensive Benchmarking: Integrates hardware performance testing (bench.sh) and global IP quality/reputation auditing tools to help users monitor their server's performance and status.
-* Seamless OTA Updates & Secure Uninstallation: Supports real-time retrieval and updating of the latest script code from GitHub. Provides two uninstallation modes: a "zero-residue nuclear wipe" and a "soft uninstall" that retains environment variables, ensuring system integrity.
-* Cross-Platform Daemon Compatibility: Intelligently identifies and seamlessly integrates with major Linux initialization systems (Systemd and OpenRC), offering broad support for mainstream Linux distributions and lightweight systems (such as Alpine).
+
+* **Full-Stack Protocol Integration & Port Multiplexing**: Automates the deployment of next-generation routing cores (VLESS-Vision, Hysteria 2, Shadowsocks). It achieves efficient multiplexing and mimicry camouflage on a single physical port (e.g., 443) through advanced kernel-level forwarding.
+* **Auto-Fix Ultimate Self-Healing Engine**: Features an atomic diagnostic mechanism for complex or polluted host environments. With a single click, it resolves addressing-layer port deadlocks, prunes "dirty" firewall rules (precisely targeting orphaned NAT/INPUT chains while protecting Docker container networking), and restores the system network state to a pristine condition.
+* **Linux Physical Kernel Performance Unleashed**: Direct interaction with Linux kernel parameters. Enables the BBR congestion control algorithm and intelligently elevates TCP windows, file descriptors (`fs.file-max`), and concurrency limits (`ulimit`) to their physical ceiling of `1,048,576`.
+* **High-Priority Benchmarking & Reputation Audit**: Deeply integrates globally recognized baseline testing components: `bench.sh` (comprehensive assessment of CPU, I/O, and international gateway speeds) and `Check.Place` (in-depth analysis of IP fraud scores and native streaming unlock purity).
+* **Surgical Cleanup & Atomic OTA Updates**: Provides a zero-residue "surgical uninstallation" protocol. Supports instant Over-The-Air (OTA) updates directly from the GitHub Cloud, ensuring the underlying architecture remains cutting-edge.
+
+---
+
+### 🏗️ Architecture Comparison
+
+The console provides two top-tier deployment architectures to meet different resource and network requirements:
+
+| Dimension | 🚀 Dual-Core Hybrid (Xray-Hybrid) | ⚡ Single-Core Omni (Sing-box) |
+| :--- | :--- | :--- |
+| **Core Engines** | Xray-core + Official Hysteria 2 | Pure Sing-box Core |
+| **Philosophy** | Physical Isolation, Best of Both | Lightweight, Unified Platform |
+| **Resource Usage** | Moderate (Dual daemons resident) | Extremely Low (Fastest scheduling) |
+| **Protocol Logic** | Xray for TCP; Native Hy2 for UDP | Internal Virtual Distribution |
+| **Best For** | Maximum throughput & high concurrency | Low-RAM VPS (e.g., 256MB/512MB) |
+
+---
 
 ### 🚀 Quick Start
 
@@ -102,4 +141,4 @@ If you encounter any issues or have suggestions, please submit them via:
 * [GitHub Issues](https://github.com/alariclin/all-in-one-duo/issues)
 
 ## 📄 许可证 / License
-Released under the [MIT License](https://opensource.org/licenses/MIT).
+Released under the MIT License. Copyright © 2026.
