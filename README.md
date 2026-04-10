@@ -65,13 +65,13 @@ sudo bash -c "$(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alaric
 ```
 ---
 <a name="-ops-cn"></a>
-#### ⚡ 全局管理
+#### 🛠️ 运维与管理
 安装完成后，在终端输入以下指令即可瞬间唤醒中控面板（支持离线唤醒）：
 ```bash
 sb
 ```
 ---
-### 🛠️面板菜单速览：
+### 面板菜单速览：
 1-10: 核心架构编排 - 分别对应 Xray (1-5) 与 Sing-box (6-10) 的部署组合。
 
 11: 系统 Benchmark & IP 审计 - 启动 bench.sh 与 Check.Place 跑分。
@@ -167,14 +167,14 @@ The console provides two top-tier deployment architectures to meet different res
 ```bash
 sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
 ```
-#### ⚡ Global Management
+#### 🛠️ Management
 Once installation is complete, simply enter the following command in the terminal to instantly launch the Control Panel (offline launch supported):
 ```bash
 sb
 ```
 ---
 <a name="-management--operations"></a>
-### 🛠️Panel Menu Overview：
+### Panel Menu Overview：
 1-10: Core Architecture Orchestration - Mirror-level deployment options for Xray-core (1-5) and Sing-box (6-10)。
 
 11: System Benchmark & IP Audit - Invokes bench.sh and Check.Place for deep quality scoring。
