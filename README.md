@@ -14,7 +14,7 @@
 
 ## 📖 中文说明
 
-**Aio-box** 是一款企业级、专注于 Linux 服务器网络环境配置、安全加固与路由优化的自动化运维环境。本项目旨在通过高保真的自动化脚本，解决异构网络协议栈在同一宿主机下的并发与冲突问题。内置系统参数极限调优与独创的“白盒自愈”机制，是网络安全研究、全栈技术测试及自动化 DevOps 管理的极佳脚手架。
+**Aio-box** 是一款注于 Linux 服务器网络环境配置、安全加固与路由优化的自动化运维环境。本项目旨在通过高保真的自动化脚本，解决异构网络协议栈在同一宿主机下的并发与冲突问题。内置系统参数极限调优与独创的“白盒自愈”机制，是网络安全研究、全栈技术测试及自动化 DevOps 管理的极佳脚手架。
 
 > **⚠️ 合规与免责声明 (Disclaimer)**: 本项目仅供网络架构学习、加密协议研究和技术交流使用。严禁用于任何非法用途。用户在使用本脚本时必须严格遵守其所在国家和地区的法律法规，任何因违反法规或不当使用造成的直接/间接后果，由使用者自行承担。
 
@@ -101,7 +101,7 @@ sb
 <a name="-english-description"></a>
 ## 🌐 Project Introduction
 
-**Aio-box** is an enterprise-grade automated operations environment focused on Linux server network configuration, security hardening, and routing optimization. This project aims to resolve concurrency and conflict issues between heterogeneous network protocol stacks on the same host through high-fidelity automation scripts. With built-in kernel-level parameter tuning and a pioneering "White-box Self-Healing" mechanism, it serves as an ideal scaffold for network security research, full-stack technical testing, and automated DevOps management.
+**Aio-box** is an automated operations environment focused on Linux server network configuration, security hardening, and routing optimization. This project aims to resolve concurrency and conflict issues between heterogeneous network protocol stacks on the same host through high-fidelity automation scripts. With built-in kernel-level parameter tuning and a pioneering "White-box Self-Healing" mechanism, it serves as an ideal scaffold for network security research, full-stack technical testing, and automated DevOps management.
 
 > **⚠️ Compliance & Disclaimer**: This project is intended strictly for network architecture research, cryptographic protocol study, and technical exchange. Use for any illegal purposes is strictly prohibited. Users must strictly comply with the laws and regulations of their respective jurisdictions. The user bears full responsibility for any direct or indirect consequences arising from improper use.
 
