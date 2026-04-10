@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ====================================================================
-# Aio-box Ultimate Console
+# Aio-box Ultimate Console [Dual-Core Hybrid | Auto-Fix | Enterprise]
 # ====================================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -238,7 +238,7 @@ fetch_github_release() {
         echo -e "${YELLOW} -> API 探测失败，自动降级至本地备用仓库拉取... / API failed, fallback to local core repo...${NC}"
         local fallback_url=""
         case "$repo" in
-            *"Xray-core"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/Xray-linux-${XRAY_ARCH}.zip" ;;
+            *"Xray"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/Xray-linux-${XRAY_ARCH}.zip" ;;
             *"sing-box"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/sing-box-linux-${SB_ARCH}.tar.gz" ;;
             *"hysteria"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/hysteria-linux-${HY2_ARCH}" ;;
         esac
@@ -265,7 +265,7 @@ fetch_github_release() {
     echo -e "${YELLOW} -> 官方下载链接失效，自动降级至本地备用仓库拉取... / Official URLs failed, fallback to local core repo...${NC}"
     local fallback_url=""
     case "$repo" in
-        *"Xray-core"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/Xray-linux-${XRAY_ARCH}.zip" ;;
+        *"Xray"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/Xray-linux-${XRAY_ARCH}.zip" ;;
         *"sing-box"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/sing-box-linux-${SB_ARCH}.tar.gz" ;;
         *"hysteria"*) fallback_url="https://raw.githubusercontent.com/alariclin/aio-box/main/core/hysteria-linux-${HY2_ARCH}" ;;
     esac
@@ -686,6 +686,124 @@ ENV_EOF
     view_config "deploy"
 }
 
+setup_traffic_monitor() {
+    cat > /etc/ddr/traffic_monitor.sh << 'EOF'
+#!/bin/bash
+source /etc/ddr/.env
+if [[ -z "$TRAFFIC_LIMIT_GB" ]]; then
+    exit 0
+fi
+
+# 使用高兼容性的 awk 正则抓取外网出口物理网卡，防止 grep -P 在部分极简系统中不被支持
+INTERFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -n 1)
+if [[ -z "$INTERFACE" ]]; then
+    INTERFACE=$(ip link | awk -F: '$0 !~ "lo|vir|wl|^[^0-9]"{print $2;getline}' | head -n 1 | tr -d ' ')
+fi
+
+USED_LINE=$(vnstat -i "$INTERFACE" -m 2>/dev/null | grep "$(date +'%Y-%m')")
+if [[ -n "$USED_LINE" ]]; then
+    TOTAL_STR=$(echo "$USED_LINE" | awk -F'|' '{print $3}' | xargs)
+    VAL=$(echo "$TOTAL_STR" | awk '{print $1}')
+    UNIT=$(echo "$TOTAL_STR" | awk '{print $2}')
+    
+    USED_GB=0
+    if [[ "$UNIT" == *"GiB"* || "$UNIT" == *"GB"* ]]; then
+        USED_GB=$VAL
+    elif [[ "$UNIT" == *"TiB"* || "$UNIT" == *"TB"* ]]; then
+        USED_GB=$(echo "$VAL * 1024" | bc)
+    elif [[ "$UNIT" == *"MiB"* || "$UNIT" == *"MB"* ]]; then
+        USED_GB=$(echo "scale=2; $VAL / 1024" | bc)
+    elif [[ "$UNIT" == *"KiB"* || "$UNIT" == *"KB"* ]]; then
+        USED_GB=$(echo "scale=4; $VAL / 1048576" | bc)
+    fi
+    
+    if (( $(echo "$USED_GB >= $TRAFFIC_LIMIT_GB" | bc -l) )); then
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl stop xray sing-box hysteria 2>/dev/null
+        else
+            rc-service xray stop 2>/dev/null
+            rc-service sing-box stop 2>/dev/null
+            rc-service hysteria stop 2>/dev/null
+        fi
+        killall -9 xray sing-box hysteria 2>/dev/null
+    fi
+fi
+EOF
+    chmod +x /etc/ddr/traffic_monitor.sh
+    crontab -l | grep -v '/etc/ddr/traffic_monitor.sh' > /tmp/cronjob 2>/dev/null || true
+    echo "*/5 * * * * /bin/bash /etc/ddr/traffic_monitor.sh >/dev/null 2>&1" >> /tmp/cronjob
+    crontab /tmp/cronjob
+    rm -f /tmp/cronjob
+}
+
+disable_traffic_monitor() {
+    crontab -l | grep -v '/etc/ddr/traffic_monitor.sh' > /tmp/cronjob 2>/dev/null || true
+    crontab /tmp/cronjob 2>/dev/null
+    rm -f /tmp/cronjob
+    rm -f /etc/ddr/traffic_monitor.sh
+}
+
+traffic_management_menu() {
+    clear
+    echo -e "${CYAN}======================================================================${NC}"
+    echo -e "${BOLD}${GREEN}   每月流量管控限制 / Monthly Traffic Management${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
+    
+    # 同样使用高兼容性的 awk 逻辑探测网卡
+    local INTERFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -n 1)
+    [[ -z "$INTERFACE" ]] && INTERFACE=$(ip link | awk -F: '$0 !~ "lo|vir|wl|^[^0-9]"{print $2;getline}' | head -n 1 | tr -d ' ')
+    
+    echo -e "${YELLOW}[网卡 ${INTERFACE} 当前月流量统计 / Current Month Traffic]${NC}"
+    if command -v vnstat >/dev/null 2>&1; then
+        local USED_LINE=$(vnstat -i "$INTERFACE" -m 2>/dev/null | grep "$(date +'%Y-%m')")
+        if [[ -n "$USED_LINE" ]]; then
+            vnstat -i "$INTERFACE" -m 2>/dev/null | head -n 6 | grep -v '^$'
+        else
+            echo -e "${YELLOW}暂无本月统计数据，vnstat 正在收集中...${NC}"
+        fi
+    else
+        echo -e "${RED}[!] 未检测到 vnstat，请确保环境已初始化。${NC}"
+    fi
+    echo -e "${BLUE}----------------------------------------------------------------------${NC}"
+    
+    source /etc/ddr/.env 2>/dev/null
+    if [[ -n "$TRAFFIC_LIMIT_GB" ]]; then
+        echo -e "当前设定的每月流量上限: ${GREEN}${TRAFFIC_LIMIT_GB} GB${NC}"
+        echo -e "管控状态: ${GREEN}监控中 (每 5 分钟自动检测一次)${NC}"
+    else
+        echo -e "当前设定的每月流量上限: ${RED}未开启 (Unlimited)${NC}"
+    fi
+    echo -e "${CYAN}======================================================================${NC}"
+    echo -e "${YELLOW}1. 设定/修改每月流量上限 (Set/Modify Limit)${NC}"
+    echo -e "${YELLOW}2. 解除流量限制 (Disable Limit)${NC}"
+    echo -e "${GREEN}0. 返回主菜单 / Return${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
+    read -ep " 请选择 / Select [0-2]: " tr_choice
+    
+    case $tr_choice in
+        1)
+            read -ep " 请输入每月总流量上限(GB)，纯数字: " limit_gb
+            if [[ "$limit_gb" =~ ^[0-9]+$ ]]; then
+                sed -i '/TRAFFIC_LIMIT_GB/d' /etc/ddr/.env 2>/dev/null
+                echo "TRAFFIC_LIMIT_GB=\"$limit_gb\"" >> /etc/ddr/.env
+                setup_traffic_monitor
+                echo -e "${GREEN}✔ 流量限制已设定为 ${limit_gb} GB！${NC}"
+                echo -e "${YELLOW}[提示] 若节点曾因超量被系统阻断，调高限额后请在主菜单重新部署一次以唤醒服务。${NC}"
+            else
+                echo -e "${RED}[!] 输入无效，请输入纯数字。${NC}"
+            fi
+            read -ep "按回车返回..."
+            ;;
+        2)
+            sed -i '/TRAFFIC_LIMIT_GB/d' /etc/ddr/.env 2>/dev/null
+            disable_traffic_monitor
+            echo -e "${GREEN}✔ 流量限制已成功解除。${NC}"
+            read -ep "按回车返回..."
+            ;;
+        *) return 0 ;;
+    esac
+}
+
 # --- [7] 渲染与交互组件 / UI Rendering Components ---
 generate_qr() {
     local url=$1
@@ -780,7 +898,7 @@ show_usage() {
     echo -e "${BOLD}${GREEN}   Aio-box 脚本说明书 / Script Manual${NC}"
     echo -e "${CYAN}======================================================================${NC}"
     
-    echo -e "${YELLOW}【一】编排逻辑与架构选择 / Architectural Guide${NC}"
+    echo -e "${YELLOW}【一】核心协议介绍 / Introduction to the Core Protocol${NC}"
     echo -e "   - [模式 10] Sing-box: 聚合平台架构。以超低内存占用实现三引擎完美共享。"
     echo -e "     (Sing-box: Aggregation Platform Architecture. Achieving seamless sharing of three engines with ultra-low memory usage..)"
     echo -e "   - [模式 5] Xray-core (Hybrid): 物理隔离架构。TCP由Xray原生承载，UDP由官方Hysteria 2承载。"
@@ -798,7 +916,7 @@ show_usage() {
 
     echo -e "${YELLOW}【三】面板内置核武功能 / Panel Artillery Tools${NC}"
     echo -e "   - [菜单 12] VPS一键优化 / VPS Tuning: 调用 sysctl 注入底层加速参数与 BBR 算法。"
-    echo -e "   - [菜单 17] 安装环境初始化 / Environment Auto-Fix: 自我诊断，阻断死锁与脏路由。"
+    echo -e "   - [菜单 17] 删除全部节点与环境初始化 / Delete all nodes and perform environment initialization:。"
     echo -e "     (Auto-Fix: White-box self-diagnosis to resolve port deadlocks and clear dirty routing rules.)\n"
     
     echo -e "${CYAN}======================================================================${NC}"
@@ -833,8 +951,8 @@ clean_uninstall_menu() {
     echo -e "${CYAN}======================================================================${NC}"
     echo -e "${BOLD}${RED}   深度卸载系统 / Deep Unloading System${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${YELLOW}1. 完全物理清场/Complete physical decontamination (销毁节点、配置表、防火墙映射与全局快速访问别名)${NC}"
-    echo -e "${YELLOW}2. 保留脚本与清场/Maintain the script and clear the area (销毁节点配置等，但留存控制台与环境供随时重构)${NC}"
+    echo -e "${YELLOW}1. 完全卸载/Complete uninstallation (销毁节点、配置表、防火墙映射与脚本)${NC}"
+    echo -e "${YELLOW}2. 保留脚本与卸载/Keep the script and uninstall (销毁节点配置等，但保留脚本)${NC}"
     echo -e "${GREEN}0. 取消并返回 / Abort and Return${NC}"
     echo -e "${CYAN}======================================================================${NC}"
     read -ep " 请谨慎输入执行代码 / Execution Code [0-2]: " un_choice
@@ -860,6 +978,12 @@ do_cleanup() {
     rm -f /etc/systemd/system/xray.service /etc/systemd/system/sing-box.service /etc/systemd/system/hysteria.service
     rm -f /etc/init.d/xray /etc/init.d/sing-box /etc/init.d/hysteria
     rm -f /etc/sysctl.d/99-aio-box-tune.conf /etc/security/limits.d/aio-box.conf
+    
+    # 清理流量监控脚本和定时任务
+    crontab -l | grep -v '/etc/ddr/traffic_monitor.sh' > /tmp/cronjob 2>/dev/null || true
+    crontab /tmp/cronjob 2>/dev/null
+    rm -f /tmp/cronjob
+    rm -f /etc/ddr/traffic_monitor.sh
     
     [[ "$INIT_SYS" == "systemd" ]] && systemctl daemon-reload 2>/dev/null || true
     
@@ -1050,6 +1174,7 @@ while true; do
     echo -e " ${GREEN}15.${NC} 脚本OTA升级 / Script OTA upgrade"
     echo -e " ${GREEN}16.${NC} 一键全部清空卸载 / One-click to completely clear and uninstall"
     echo -e " ${GREEN}17.${NC} 删除全部节点与环境初始化 / Delete all nodes and perform environment initialization"
+    echo -e " ${GREEN}18.${NC} 每月流量管控限制 / Monthly Traffic Management Limit"
     echo -e " ${GREEN}0.${NC} 退出脚本 / Exit Script"
     echo -e "${BLUE}======================================================================${NC}"
     read -ep " 请求下发执行代号 / Request input command: " choice
@@ -1072,6 +1197,7 @@ while true; do
         15) update_script ;;
         16) clean_uninstall_menu ;; 
         17) check_virgin_state ;; 
+        18) traffic_management_menu ;;
         0) clear; exit 0 ;; 
         *) sleep 1 ;;
     esac
