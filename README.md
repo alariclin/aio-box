@@ -77,7 +77,7 @@ sb
 * 12: VPS 一键优化 - 物理注入 BBR 算法并提升内核并发句柄。
 * 13: 节点参数显示 - 以明文及 Clash Meta YAML 格式输出当前配置。
 * 14: 脚本说明书 - 所有功能详细解释避坑指南。
-* 15: 脚本 OTA 升级 - 绕过缓存同步 GitHub 远端源码，实现脚本无损热更新。
+* 15: 脚本OTA升级与Geo资源更新 - 绕过缓存同步 GitHub 远端源码，实现脚本无损热更新。
 * 16: 一键清空 - 提供物理级完全清场模式，彻底粉碎节点、配置与防火墙规则。
 * 17: 环境自愈 - 扫描死锁、清理脏路由、连通性探测。
 * 18: 流量管控 - 基于 vnstat 监控流量，支持到达月度阈值后自动熔断服务以防超支。
@@ -160,7 +160,7 @@ sb
 * **12**: One-click VPS Optimization - Physically inject BBR algorithm and enhance kernel concurrent handles.
 * **13**: Node Parameter Display - Outputs current topology configuration in plain text and Clash Meta YAML format.
 * **14**: Script Manual - Detailed explanations of all functions and a guide to avoid pitfalls.
-* **15**: Script OTA Upgrade - Overcomes cache synchronization and synchronizes remote source code from GitHub to achieve lossless hot update of the script.
+* **15**: Script OTA & Geo Resource Update - Overcomes cache synchronization and synchronizes remote source code from GitHub to achieve lossless hot update of the script.
 * **16**:  One-click Clearing - Provides a physical-level complete clearance mode to completely destroy nodes, configurations, and firewall rules.
 * **17**: Environment Self-healing - Scans for deadlocks, cleans up dirty routes, and conducts connectivity detection.
 * **18**: Traffic Control - Monitors traffic based on vnstat and supports automatic service disconnection upon reaching monthly thresholds to prevent over-consumption.
