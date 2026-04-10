@@ -61,15 +61,14 @@ sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/alariclin/aio-box/mai
 ```bash
 sudo bash -c "$(curl -Ls https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh)"
 ```
-
+---
 <a name="-ops-cn"></a>
 #### ⚡ 全局管理
 安装完成后，在终端输入以下指令即可瞬间唤醒中控面板（支持离线唤醒）：
 ```bash
 sb
 ```
-
-
+---
 ### 🛠️面板菜单速览：
 1-10: 核心架构编排 - 分别对应 Xray (1-5) 与 Sing-box (6-10) 的部署组合。
 
@@ -86,9 +85,7 @@ sb
 16: 一键清空卸载 - 执行防御式卸载，物理销毁残留碎片。
 
 17: 环境自愈 (Auto-Fix) - 扫描死锁、清理脏路由、连通性探测。
-
-
-
+---
 <a name="-faq-cn"></a>
 ### ❓常见问题 (FAQ)
 Q: VLESS 节点为什么连上后瞬间断开？
