@@ -101,6 +101,7 @@ Q: 卸载会损坏 Docker 规则吗？
 
 A: 绝对不会。脚本采用正则精准锚定清理带有 Aio-box- 注释的规则，不使用野蛮的 iptables -F。
 
+---
 
 <a name="-english-description"></a>
 
