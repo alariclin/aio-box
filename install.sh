@@ -1,38 +1,6 @@
 #!/usr/bin/env bash
 # ====================================================================
 # Aio-box Ultimate Console [Dual-Core Hybrid | Auto-Fix | Enterprise]
-# Version: 2026.04.Apex-Stable-V56-Absolute-Perfect-Final
-#
-# --------------------------------------------------------------------
-# [核心架构审计与修复报告 / Core Architecture Audit & Changelog]:
-# 
-# 1. 修复 (CRITICAL BUG FIX): 依赖悖论时序死锁 (Dependency Paradox).
-#    - [诊断]: 之前的版本在执行流程上存在严重的竞态条件。`check_env` 试图
-#      启动 cron 和 vnstat，但此时 `INIT_SYS` (systemd/openrc) 尚未被
-#      `check_init_sys` 赋值。这导致依赖安装成功了，但服务永远不会自启。
-#    - [手术]: 重构为单一原子级生命周期函数 `init_system_environment`。
-#      严格按照 "OS嗅探 -> Init嗅探 -> 环境注入 -> 动态路径绑定" 的绝对
-#      物理时序执行，彻底斩断了“鸡生蛋”的死锁逻辑。
-#
-# 2. 优化 (PERFORMANCE OPTIMIZATION): 全局状态机与 API 熔断保护.
-#    - [诊断]: 原逻辑在 `deploy_*` 函数内重复调用 `curl api.ipify.org`，
-#      在弱网或高频刷新面板时，不仅会导致长达 3-5 秒的 UI 阻塞，极易触发
-#      公网 API 的 Rate Limit 导致 IP 被 Ban。
-#    - [手术]: 引入内存级全局变量 `$GLOBAL_PUBLIC_IP`。仅在脚本冷启动
-#      时静默执行一次网络 IO 并常驻内存。后续所有菜单渲染、节点链接生成
-#      全部实现 0ms 零延迟极速调用。
-#
-# 3. 增强 (SYSTEM ENHANCEMENT): 针对 Alpine/Busybox 的极限内核调优.
-#    - [诊断]: `sysctl --system` 指令在精简版的 Alpine 宿主机上会直接报错，
-#      导致 BBR 拥塞控制和 TCP 并发限制提速全部失效。
-#    - [手术]: 在 `tune_vps` 中加入内核特性探针，若判定为 Alpine 架构，
-#      则自动回退并调用 `for loop` 遍历 `/etc/sysctl.d/*.conf` 进行
-#      底层精确注入 (`sysctl -p`)，实现全发行版的 100% 调优成功率。
-# 
-# 4. 完善 (ABSOLUTE CLEANUP): 卸载逻辑的终极闭环.
-#    - [手术]: 在 `do_cleanup` 中追加了对内核参数配置文件 
-#      (`99-aio-box-tune.conf` & `limits.d`) 的销毁，确保选择“完全物理清场”
-#      时，VPS 状态能够 1:1 回滚至最初的系统镜像态。
 # ====================================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -52,7 +20,6 @@ sed -i '/acme.sh.env/d' ~/.bashrc >/dev/null 2>&1 || true
 
 # --- [1] 统一生命周期初始化 (原子化时序) / Unified Environment Initialization ---
 init_system_environment() {
-    # [Phase 1]: 宿主机 OS 架构特征嗅探
     if [[ -n $(find /etc -name "redhat-release" 2>/dev/null) ]] || grep </proc/version -q -i "centos"; then
         release="centos"
         installType='yum -y install'
@@ -76,7 +43,6 @@ init_system_environment() {
         exit 1
     fi
 
-    # [Phase 2]: 初始化系统与守护进程管理器嗅探
     if command -v systemctl >/dev/null 2>&1; then
         INIT_SYS="systemd"
     elif command -v rc-service >/dev/null 2>&1; then
@@ -86,7 +52,6 @@ init_system_environment() {
         exit 1
     fi
 
-    # [Phase 3]: 核心依赖注入与缺失修补 (仅当缺失时触发，保证极速启动)
     if ! command -v jq >/dev/null || ! command -v fuser >/dev/null || ! command -v unzip >/dev/null || ! command -v qrencode >/dev/null || ! command -v iptables >/dev/null; then
         echo -e "${YELLOW}[*] 正在同步系统依赖环境 / Syncing dependencies (OS: ${release}, Init: ${INIT_SYS})...${NC}"
         
@@ -111,7 +76,6 @@ init_system_environment() {
         ${installType} "${deps[@]}" >/dev/null 2>&1
         hash -r 2>/dev/null || true
         
-        # 依赖注入完毕后，立即利用嗅探到的 INIT_SYS 拉起守护进程
         if [[ "$INIT_SYS" == "systemd" ]]; then
             service_manager start cron crond vnstat 2>/dev/null || true
         elif [[ "$INIT_SYS" == "openrc" ]]; then
@@ -119,7 +83,6 @@ init_system_environment() {
         fi
     fi
 
-    # [Phase 4]: 动态路径绝对绑定 (解决依赖安装前路径不存在的真空期漏洞)
     IPT=$(command -v iptables || echo "/sbin/iptables")
     IPT6=$(command -v ip6tables || echo "/sbin/ip6tables")
 }
@@ -183,7 +146,6 @@ allowPort() {
         firewall-cmd --zone=public --add-port="${port}/${type}" --permanent >/dev/null 2>&1
         firewall-cmd --reload >/dev/null 2>&1
     elif command -v iptables >/dev/null 2>&1; then
-        # 智能避免重复写入，利用 Comment 定向锚点
         if ! $IPT -C INPUT -p "${type}" --dport "${port}" -j ACCEPT 2>/dev/null; then
             $IPT -I INPUT -p "${type}" --dport "${port}" -m comment --comment "Aio-box-${port}-${type}" -j ACCEPT >/dev/null 2>&1
         fi
@@ -197,7 +159,6 @@ allowPort() {
 }
 
 clean_nat_rules() {
-    # 动态防御循环：防止由于内核态挂起导致空命令生成的死循环 (CPU 100% Bug)
     while $IPT -w -t nat -S PREROUTING 2>/dev/null | grep -q "20000:50000"; do
         local LOCAL_RULE=$($IPT -w -t nat -S PREROUTING 2>/dev/null | grep "20000:50000" | head -n 1 | sed 's/^-A /-D /')
         [[ -z "$LOCAL_RULE" ]] && break
@@ -211,7 +172,6 @@ clean_nat_rules() {
 }
 
 clean_input_rules() {
-    # 外科手术式清理，坚决不动非 Aio-box 产生的规则链 (如 Docker, Fail2ban)
     while $IPT -w -S INPUT 2>/dev/null | grep -q "Aio-box-"; do
         local LOCAL_RULE=$($IPT -w -S INPUT 2>/dev/null | grep "Aio-box-" | head -n 1 | sed 's/^-A /-D /')
         [[ -z "$LOCAL_RULE" ]] && break
@@ -241,7 +201,6 @@ release_ports() {
 setup_shortcut() {
     mkdir -p /etc/ddr
     if [[ ! -f /etc/ddr/aio.sh || "$1" == "update" ]]; then
-        # 引入 tmp 临时文件原子化覆写，防止弱网环境下载一半断开导致脚本文件损坏变空 (0 byte)
         curl -fLs --connect-timeout 10 https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh > /tmp/aio.sh.tmp && mv /tmp/aio.sh.tmp /etc/ddr/aio.sh
         chmod +x /etc/ddr/aio.sh
     fi
@@ -256,8 +215,6 @@ fetch_github_release() {
     local repo=$1; local keyword=$2; local output_file=$3
     echo -e "${YELLOW} -> 正在从 GitHub 抓取最新架构版本 / Fetching latest release [${repo}]...${NC}"
     local api_url="https://api.github.com/repos/${repo}/releases/latest"
-    
-    # 动态解析 JSON 抽取直链
     local download_url=$(curl -sL "$api_url" | jq -r ".assets[] | select(.name | contains(\"$keyword\")) | .browser_download_url" | head -n 1)
     
     if [[ -z "$download_url" || "$download_url" == "null" ]]; then
@@ -268,7 +225,6 @@ fetch_github_release() {
         echo -e "${RED}[!] 异常: 无法解析 $repo 下载链。请检查网络。 / Failed to resolve link.${NC}"; exit 1
     fi
 
-    # 多重镜像并发容灾回退
     local mirrors=("" "https://ghp.ci/" "https://ghproxy.net/")
     for mirror in "${mirrors[@]}"; do
         if curl -fLs --connect-timeout 10 "${mirror}${download_url}" -o "/tmp/${output_file}" && [[ -s "/tmp/${output_file}" ]]; then
@@ -330,17 +286,16 @@ pre_install_setup() {
     [[ "$MODE" == *"SS"* ]] || [[ "$MODE" == *"ALL"* ]] && { allowPort "$SS_PORT" "tcp"; allowPort "$SS_PORT" "udp"; }
 }
 
-# --- [6] 官方组件部署栈 (物理隔离态) / Official Component Deployment ---
+# --- [6] 核心组件部署栈 / Component Deployment ---
 deploy_official_hy2() {
     local IS_SILENT=$1
-    [[ "$IS_SILENT" != "SILENT" ]] && { clear; echo -e "${BOLD}${GREEN} 部署原生 Hysteria 2 / Deploying Native Hy2 ${NC}"; init_system_environment; pre_install_setup "hysteria" "HY2"; release_ports; get_architecture; }
+    [[ "$IS_SILENT" != "SILENT" ]] && { clear; echo -e "${BOLD}${GREEN} 部署官方 Hysteria 2 / Deploying Native Hy2 ${NC}"; init_system_environment; pre_install_setup "hysteria" "HY2"; release_ports; get_architecture; }
     
     fetch_github_release "apernet/hysteria" "hysteria-linux-${HY2_ARCH}" "hysteria_core"
     mv /tmp/hysteria_core /usr/local/bin/hysteria; chmod +x /usr/local/bin/hysteria
     
     HY2_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9'); HY2_OBFS=$(openssl rand -base64 8 | tr -dc 'a-zA-Z0-9')
     
-    # 动态签发 100 年自持 TLS 身份证书
     mkdir -p /etc/hysteria; openssl ecparam -genkey -name prime256v1 -out /etc/hysteria/server.key 2>/dev/null
     openssl req -new -x509 -days 36500 -key /etc/hysteria/server.key -out /etc/hysteria/server.crt -subj "/CN=${HY2_SNI}" 2>/dev/null
 
@@ -425,11 +380,12 @@ deploy_xray() {
     local MODE=$1; clear; echo -e "${BOLD}${GREEN} 部署 Xray-core (Hybrid模式) / Deploying Xray-core [$MODE] ${NC}"
     init_system_environment; pre_install_setup "xray" "$MODE"; release_ports; get_architecture
     
+    rm -rf /tmp/xray_ext /tmp/xray_core.zip 2>/dev/null
     fetch_github_release "XTLS/Xray-core" "Xray-linux-${XRAY_ARCH}.zip" "xray_core.zip"
     fetch_geo_data "geoip.dat" "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat"
     fetch_geo_data "geosite.dat" "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat"
     
-    rm -rf /tmp/xray_ext; unzip -qo "/tmp/xray_core.zip" -d /tmp/xray_ext || { echo -e "${RED}[!] 异常: 压缩包损坏或解压失败！${NC}"; exit 1; }
+    unzip -qo "/tmp/xray_core.zip" -d /tmp/xray_ext || { echo -e "${RED}[!] 异常: 压缩包损坏或解压失败！${NC}"; exit 1; }
     mv /tmp/xray_ext/xray /usr/local/bin/xray; chmod +x /usr/local/bin/xray
     mkdir -p /usr/local/share/xray /usr/local/etc/xray
     mv /tmp/geoip.dat /usr/local/share/xray/; mv /tmp/geosite.dat /usr/local/share/xray/
@@ -517,7 +473,6 @@ SVC_EOF
     service_manager start xray
     sleep 2; is_service_running xray || { echo -e "${RED}[!] 致命错误：Xray 守护进程拉起失败！ / Core panic!${NC}"; exit 1; }
 
-    # [混合编排机制]: 当选择 ALL 时，在同一物理环境中非破坏性静默植入原生 UDP 协议栈
     if [[ "$MODE" == "ALL" ]]; then
         deploy_official_hy2 "SILENT"
     fi
@@ -531,6 +486,9 @@ ENV_EOF
 deploy_singbox() {
     local MODE=$1; clear; echo -e "${BOLD}${GREEN} 部署 Sing-box 核心 / Deploying Sing-box [$MODE] ${NC}"
     init_system_environment; pre_install_setup "singbox" "$MODE"; release_ports; get_architecture
+    
+    # 修复通配符溢出：强行清理历史残留，确保解压不出错
+    rm -rf /tmp/sing-box-* /tmp/singbox_core.tar.gz 2>/dev/null
     
     fetch_github_release "SagerNet/sing-box" "linux-${SB_ARCH}.tar.gz" "singbox_core.tar.gz"
     tar -xzf "/tmp/singbox_core.tar.gz" -C /tmp || { echo -e "${RED}[!] 异常: 压缩包损坏或解压失败！${NC}"; exit 1; }
@@ -726,6 +684,17 @@ EOF
     obfs-password: $HY2_OBFS
 EOF
     fi
+    if [[ "$MODE" == *"SS"* ]] || [[ "$MODE" == *"ALL"* ]] || [[ "$MODE" == "VLESS_SS" ]]; then
+        cat <<EOF
+  - name: "Aio-SS"
+    type: ss
+    server: $LINK_IP
+    port: $SS_PORT
+    cipher: 2022-blake3-aes-128-gcm
+    password: $SS_PASS
+    udp: true
+EOF
+    fi
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
 
     [[ "$CALLER" == "deploy" ]] && echo -e "${GREEN}✔ 服务池编译部署完毕！可随时键入 13 调出此面板。 / Initialization Phase Complete!${NC}"
@@ -734,30 +703,32 @@ EOF
 
 show_usage() {
     clear; echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${BOLD}${GREEN}   Aio-box Ultimate 手册指引 / Operations Manual${NC}"
+    echo -e "${BOLD}${GREEN}   Aio-box Ultimate 脚本说明书 / Script Manual${NC}"
     echo -e "${CYAN}======================================================================${NC}"
     
     echo -e "${YELLOW}【一】编排逻辑与架构选择 / Architectural Guide${NC}"
     echo -e "   - [模式 10] Sing-box: 聚合平台架构。以超低内存占用实现三引擎完美共享同一套路由。"
-    echo -e "   - [模式 5] Xray-core (Hybrid): 极端物理隔离架构。TCP 由 Xray 原生承载，UDP 由 
-     官方 Hysteria 2 承载，提供极致性能天花板和隔离安全性。\n"
+    echo -e "     (Sing-box: Unified platform architecture. Shares one routing table with ultra-low memory usage.)"
+    echo -e "   - [模式 5] Xray-core (Hybrid): 极端物理隔离架构。TCP 由 Xray 原生承载，UDP 由官方 Hysteria 2 承载。"
+    echo -e "     (Xray-core Hybrid: Extreme physical isolation. TCP native on Xray, UDP on native Hysteria 2.)\n"
 
     echo -e "${YELLOW}【二】终端对齐规范 (强约束) / Constraint Violations${NC}"
-    echo -e "   1. 关于 VLESS-Reality 的物理特征对齐:"
-    echo -e "      - 禁区：客户端配置时绝不能允许 Mux(多路复用) 打开，否则将被防火墙 Vision
-        嗅探直接中断握手并断连。"
-    echo -e "      - 要求：伪装指纹 (uTLS) 需高度保真，推荐并只推荐 chrome 选项。"
-    echo -e "   2. 关于 Hysteria 2 的证书免疫逃透:"
-    echo -e "      - 由于面板执行 100 年自动签发来反向切断数字证书链溯源，客户端侧验证必须选择
-        不安全（Insecure / Skip Cert Verify）。\n"
+    echo -e "   1. 关于 VLESS-Reality 的物理特征对齐 / About VLESS-Reality physical alignment:"
+    echo -e "      - 禁区：客户端绝不能开启 Mux(多路复用)！否则将被 Vision 流控直接断连。"
+    echo -e "        (Taboo: NEVER enable Mux in client configs, or Vision flow control will drop it.)"
+    echo -e "      - 要求：伪装指纹 (uTLS) 需高度保真，强烈推荐 chrome 选项。"
+    echo -e "        (Requirement: uTLS fingerprint must be highly authentic, 'chrome' is highly recommended.)"
+    echo -e "   2. 关于 Hysteria 2 的证书免疫逃透 / About Hysteria 2 certificate immunity:"
+    echo -e "      - 客户端侧验证必须选择不安全（Insecure / Skip Cert Verify）。"
+    echo -e "        (Client side MUST enable 'Insecure' or 'Skip Cert Verify' due to self-signed certs.)\n"
 
     echo -e "${YELLOW}【三】面板内置核武功能 / Panel Artillery Tools${NC}"
-    echo -e "   - [菜单 11] 底层内核跃迁: 调用 sysctl 对网络协议栈的内存窗口和 BBR 算法进行物理注入。"
-    echo -e "   - [菜单 16] 终极防御与环境自愈: 触发白盒级别的自我诊断。强力阻断端口抢占死锁，
-     深度清理脏路由规则 (只针对本系统链，保护 Docker 独立链安全)。\n"
+    echo -e "   - [菜单 12] VPS一键优化 / VPS Tuning: 调用 sysctl 注入底层加速参数与 BBR 算法。"
+    echo -e "   - [菜单 17] 安装环境初始化 / Environment Auto-Fix: 触发白盒级别的自我诊断，阻断死锁与脏路由。"
+    echo -e "     (Auto-Fix: White-box self-diagnosis to resolve port deadlocks and clear dirty routing rules.)\n"
     
     echo -e "${CYAN}======================================================================${NC}"
-    read -ep " 阅读完毕，按回车返回总台 / Press Enter to return to main menu..."
+    read -ep " 阅读完毕，按回车返回主菜单 / Press Enter to return to main menu..."
 }
 
 update_script() {
@@ -807,7 +778,6 @@ do_cleanup() {
     service_manager stop xray sing-box hysteria
     killall -9 xray sing-box hysteria 2>/dev/null || true
     
-    # 无损卸载核心：只剔除本身产生的靶向网络映射，确保机器其余服务平稳运行
     clean_nat_rules
     clean_input_rules
     save_firewall_rules
@@ -931,7 +901,6 @@ net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 EOF
 
-    # 应对 Alpine / Busybox 环境缺失标准 sysctl 解析链的兼容性物理操作
     if [[ "$release" == "alpine" ]]; then
         for conf in /etc/sysctl.d/*.conf /etc/sysctl.conf; do
             [[ -f "$conf" ]] && sysctl -p "$conf" >/dev/null 2>&1 || true
@@ -944,6 +913,31 @@ EOF
     read -ep "按回车安全退出 / Press Enter to return..."
 }
 
+vps_benchmark_menu() {
+    clear
+    echo -e "${CYAN}======================================================================${NC}"
+    echo -e "${BOLD}${GREEN}   本机配置与IP测速纯净度 / Benchmark & IP Check${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
+    echo -e "${YELLOW}1. 本机配置和测速 (bench.sh) / System Info & Speedtest${NC}"
+    echo -e "${YELLOW}2. 网速与IP纯净度检测 (Check.Place) / IP Quality & Speed${NC}"
+    echo -e "${GREEN}0. 返回主菜单 / Return to Main Menu${NC}"
+    echo -e "${CYAN}======================================================================${NC}"
+    read -ep " 请选择 / Please select [0-2]: " bench_choice
+    case $bench_choice in
+        1) 
+            clear; echo -e "${GREEN}正在运行 bench.sh... / Running bench.sh...${NC}"
+            wget -qO- bench.sh | bash
+            read -ep "按回车返回主菜单 / Press Enter to return..."
+            ;;
+        2)
+            clear; echo -e "${GREEN}正在运行 Check.Place... / Running Check.Place...${NC}"
+            bash <(curl -Ls https://Check.Place) -I
+            read -ep "按回车返回主菜单 / Press Enter to return..."
+            ;;
+        0|*) return 0 ;;
+    esac
+}
+
 # --- [8] 终端架构控制与交互渲染层 / Main Display Architecture ---
 init_system_environment
 setup_shortcut
@@ -951,7 +945,6 @@ setup_shortcut
 GLOBAL_PUBLIC_IP=""
 
 while true; do
-    # API 限流全局缓存机制，防止高频刷新封禁
     [[ -z "$GLOBAL_PUBLIC_IP" || "$GLOBAL_PUBLIC_IP" == "N/A" ]] && GLOBAL_PUBLIC_IP=$(curl -s4m3 api.ipify.org || curl -s6m3 api64.ipify.org || echo "N/A")
     
     STATUS_STR=""
@@ -962,7 +955,7 @@ while true; do
     
     source /etc/ddr/.env 2>/dev/null && CUR_MODE="[${CORE}-${MODE}]" || CUR_MODE=""
     
-    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V56 Absolute Final] ${NC}\n${BLUE}======================================================================${NC}"
+    clear; echo -e "${BLUE}======================================================================${NC}\n${BOLD}${PURPLE}  Aio-box Ultimate Console [Apex V56 Absolute Perfect Final] ${NC}\n${BLUE}======================================================================${NC}"
     echo -e " 连通网关: ${YELLOW}$GLOBAL_PUBLIC_IP${NC} | 物理运行栈: $STATUS_STR $CUR_MODE\n${BLUE}----------------------------------------------------------------------${NC}"
     echo -e " ${YELLOW}[ Xray-core 独立容器部署 ]${NC}           ${CYAN}[ Sing-box 聚合架构部署 ]${NC}"
     echo -e " ${GREEN}1.${NC} VLESS-Vision (Reality)         ${GREEN}6.${NC} VLESS-Vision (Reality)"
@@ -971,10 +964,14 @@ while true; do
     echo -e " ${GREEN}4.${NC} Hysteria 2 (Apernet 原生核心)  ${GREEN}9.${NC} Hysteria 2 (聚合版)"
     echo -e " ${GREEN}5.${NC} 协议全家桶 (混编:Xray+原生Hy2) ${GREEN}10.${NC} 协议全家桶 (纯享:Sing-box)"
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
-    echo -e " ${GREEN}11.${NC} VPS 底层内核跃迁 / VPS Tuning   ${YELLOW}13.${NC} 全协议节点输出 / Export Nodes"
-    echo -e " ${GREEN}12.${NC} 核心逻辑说明向导 / Usage Guide  ${YELLOW}14.${NC} 触发热更新代码 / OTA Sync"
-    echo -e " ${CYAN}16.${NC} 环境异常诊断自愈 / Auto-Fix     ${RED}15.${NC} 防御式剥离卸载 / Uninstall"
-    echo -e " ${GREEN}0.${NC} 终止主进程退出终端 / Exit Panel"
+    echo -e " ${GREEN}11.${NC} 本机配置与IP测速纯净度 / Benchmark & IP Check"
+    echo -e " ${GREEN}12.${NC} VPS一键优化 / VPS One-Click Tuning"
+    echo -e " ${YELLOW}13.${NC} 节点参数显示 / Display Node Config"
+    echo -e " ${YELLOW}14.${NC} 脚本说明书 / Script Manual"
+    echo -e " ${CYAN}15.${NC} 脚本OTA升级 / Script OTA Update"
+    echo -e " ${RED}16.${NC} 一键清空卸载 / One-Click Uninstall"
+    echo -e " ${PURPLE}17.${NC} 安装环境初始化 / Environment Auto-Fix"
+    echo -e " ${GREEN}0.${NC} 退出脚本 / Exit Script"
     echo -e "${BLUE}======================================================================${NC}"
     read -ep " 请求下发执行代号 / Request input command: " choice
     
@@ -989,12 +986,13 @@ while true; do
         8) deploy_singbox "VLESS_SS" ;;
         9) deploy_singbox "HY2" ;;
         10) deploy_singbox "ALL" ;;
-        11) tune_vps ;; 
-        12) show_usage ;;
+        11) vps_benchmark_menu ;;
+        12) tune_vps ;; 
         13) view_config ;; 
-        14) update_script ;;
-        15) clean_uninstall_menu ;; 
-        16) check_virgin_state ;; 
+        14) show_usage ;;
+        15) update_script ;;
+        16) clean_uninstall_menu ;; 
+        17) check_virgin_state ;; 
         0) clear; exit 0 ;; 
         *) sleep 1 ;;
     esac
