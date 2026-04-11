@@ -982,7 +982,7 @@ show_usage() {
     echo -e "    - 证书验证：由于采用自签证书，客户端必须开启 '允许不安全证书' 或 '跳过证书验证'。"
     echo -e "      (Certificate: Due to self-signed certs, clients MUST enable 'Allow Insecure' or 'Skip Cert Verify'.)\n"
 
-    echo -e "${YELLOW}【三】面板运维核武功能 / Panel Operations & Artillery Tools${NC}"
+    echo -e "${YELLOW}【三】面板运维功能 / Panel Operations Tools${NC}"
     echo -e " 11. 测速与 IP 审计 (Benchmark): 调用 bench.sh 与 Check.Place 检测 VPS 性能与 IP 欺诈分。"
     echo -e "     (Runs bench.sh and Check.Place to audit VPS performance and IP fraud scores.)"
     echo -e " 12. VPS 一键优化 (BBR Tuning): 注入内核参数，开启 BBR 算法，优化句柄上限至 104 万。"
