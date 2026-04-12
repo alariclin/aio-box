@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# ====================================================================
-# Aio-box Ultimate Console [Dual-Core Hybrid | Auto-Fix | Enterprise]
-# [Pure Refined Edition: Bugfixed, RAM-Disk Optimized, Zero Bloat, Safety Lock]
-# ====================================================================
+# ==============================Aio-box===============================
 
 export DEBIAN_FRONTEND=noninteractive
 export LANG=en_US.UTF-8
