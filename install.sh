@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # ====================================================================================================
-# Aio-box Ultimate Console [Dual-Core Hybrid | Auto-Fix | Enterprise V9.9 Final Perfected]
-# [Deep Deterministic Reasoning Audited: Alpine Compatibility, POSIX Safeties, Disk Space Integrity]
+# Aio-box
 # ====================================================================================================
 
 umask 077
