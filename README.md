@@ -173,6 +173,7 @@ sb
 ## 🤝 反馈与交流 / Feedback & Support
 
 如果您在使用过程中遇到任何问题或有改进建议，欢迎通过以下方式参与讨论：
+
 If you encounter any issues or have suggestions, please join the discussion via:
 
 * **[GitHub Issues](https://github.com/alariclin/aio-box/issues)**: 提交缺陷报告或新功能提议 / Submit bug reports or feature requests.
@@ -182,4 +183,5 @@ If you encounter any issues or have suggestions, please join the discussion via:
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 本项目采用 **[Apache License 2.0](LICENSE)** 许可证进行授权。
+
 This project is licensed under the **[Apache License 2.0](LICENSE)**.
