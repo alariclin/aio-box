@@ -16,8 +16,7 @@
 
 **Aio-box** 是一款注于 Linux 服务器网络环境配置、安全加固与路由优化的自动化运维环境。本项目旨在通过高保真的自动化脚本，解决异构网络协议栈在同一宿主机下的并发与冲突问题。内置系统参数极限调优与独创的“白盒自愈”机制，是网络安全研究、全栈技术测试及自动化 DevOps 管理的极佳脚手架。
 
-> **⚠️ 合规与免责声明 (Disclaimer)**: 本项目仅供网络架构学习、加密协议研究和技术交流使用。严禁用于任何非法用途。用户在使用本脚本时必须严格遵守其所在国家和地区的法律法规，任何因违反法规或不当使用造成的直接/间接后果，由使用者自行承担。
-
+> **⚠️ 合规与免责声明 (Disclaimer)**: 本项目定位为企业级网络架构测试、网络安全研究与个人隐私保护工具。严禁利用本脚本从事任何违反所在国家或地区法律法规的活动。使用者必须自行承担因不当使用而产生的一切直接或间接法律责任。
 ### 📑 目录
 1. [✨ 核心特性](#-features-cn)
 2. [🏗️ 架构对比](#-arch-cn)
@@ -27,11 +26,11 @@
 <a name="-features-cn"></a>
 ### ✨ 核心特性
 
-* **全栈协议整合与端口拟态**: 自动化部署最新一代网络路由核心（VLESS-Vision、Hysteria 2、Shadowsocks），支持复杂的协议栈整合。通过内核级转发，实现同一物理端口（如 443）的高效复用与拟态伪装。
-* **Auto-Fix 终极环境自愈引擎**: 针对复杂或被污染的宿主环境，脚本内置白盒级原子诊断。一键释放寻址层死锁端口、抹除脏防火墙规则（精准狙击废弃的 NAT/INPUT 链，绝对保护 Docker 容器路由池），并将系统网络状态恢复至绝对纯净的“出厂态”。
-* **Linux 物理内核算力释放**: 摒弃表层优化，脚本直击 Linux 内核参数。一键重载 BBR 拥塞控制算法，并智能将底层 TCP 窗口、文件描述符 (`fs.file-max`) 和最大并发限制 (`ulimit`) 拉升至 `1,048,576` 的物理极限。
-* **高优测速与信誉审计**: 面板深度集成全球公认的基准测试组件：`bench.sh`（全面评估 CPU、I/O 与国际网关速率）与 `Check.Place`（深入探查 IP 的欺诈评分与原生解锁纯净度）。
-* **无痕清场与原子级 OTA**: 提供零残留的“外科手术级卸载”机制，绝不残留暗病。支持从 GitHub 云端秒级热更新（OTA），确保底层架构永远保持最新。
+* **一键全栈加密协议部署**: 自动化配置最新一代安全代理协议。通过 Xray-core 或 Sing-box 引擎，实现 VLESS-Vision 伪装、Shadowsocks-2022 高强加密以及 Hysteria 2 UDP 暴力穿透，支持单端口多协议复用。
+* **终极环境自愈引擎**: 内置白盒级诊断机制。一键释放死锁端口，精准抹除可能导致暴露的废弃防火墙规则，确保代理环境纯净稳定。
+* **物理级网络算力释放**: 深度优化 Linux 内核参数。一键激活 BBR 拥塞控制算法，大幅提升 TCP 并发上限，压榨服务器每一滴网络性能。
+* **高优测速与信誉审计**: 集成 `bench.sh` 和 `Check.Place`，全面评估 VPS 物理性能及 IP 的欺诈评级与纯净度。
+* **OTA热更新与无痕清场**: 支持脚本源码无损热更新，并提供“核弹级”卸载模式，彻底清除所有节点配置和防火墙痕迹，不留后门。
 
 ---
 <a name="-arch-cn"></a>
@@ -89,7 +88,7 @@ sb
 
 **Aio-box** is an automated operations and maintenance environment dedicated to network environment configuration, security hardening, and routing optimization for Linux servers. This project aims to resolve concurrency and conflict issues of heterogeneous network protocol stacks on the same host machine through high-fidelity automation scripts.With built-in extreme system parameter tuning and an original "white-box self-healing" mechanism, it serves as an excellent scaffolding for cybersecurity research, full-stack technical testing, and automated DevOps management
 
-> **⚠️ Compliance & Disclaimer**: This project is intended strictly for network architecture research, cryptographic protocol study, and technical exchange. Use for any illegal purposes is strictly prohibited. Users must strictly comply with the laws and regulations of their respective jurisdictions. The user bears full responsibility for any direct or indirect consequences arising from improper use.
+> **⚠️ Compliance & Disclaimer**: This project is positioned as a tool for enterprise-level network architecture testing, cybersecurity research, and personal privacy protection. It is strictly prohibited to use this script for any activities that violate the laws and regulations of the country or region where you are located. Users must bear all direct and indirect legal responsibilities arising from improper use on their own.
 
 ---
 
@@ -103,11 +102,11 @@ sb
 <a name="-key-features"></a>
 ### ✨ Key Features
 
-* **Full-Stack Protocol Integration & Port Multiplexing**: Automates the deployment of next-generation routing cores (VLESS-Vision, Hysteria 2, Shadowsocks). It achieves efficient multiplexing and mimicry camouflage on a single physical port (e.g., 443) through advanced kernel-level forwarding.
-* **Auto-Fix Ultimate Self-Healing Engine**: Features an atomic diagnostic mechanism for complex or polluted host environments. With a single click, it resolves addressing-layer port deadlocks, prunes "dirty" firewall rules (precisely targeting orphaned NAT/INPUT chains while protecting Docker container networking), and restores the system network state to a pristine condition.
-* **Linux Physical Kernel Performance Unleashed**: Direct interaction with Linux kernel parameters. Enables the BBR congestion control algorithm and intelligently elevates TCP windows, file descriptors (`fs.file-max`), and concurrency limits (`ulimit`) to their physical ceiling of `1,048,576`.
-* **High-Priority Benchmarking & Reputation Audit**: Deeply integrates globally recognized baseline testing components: `bench.sh` (comprehensive assessment of CPU, I/O, and international gateway speeds) and `Check.Place` (in-depth analysis of IP fraud scores and native streaming unlock purity).
-* **Surgical Cleanup & Atomic OTA Updates**: Provides a zero-residue "surgical uninstallation" protocol. Supports instant Over-The-Air (OTA) updates directly from the GitHub Cloud, ensuring the underlying architecture remains cutting-edge.
+* **One-click Full-stack Encryption Protocol Deployment**: Automate the configuration of the latest generation of secure proxy protocols. Through the Xray-core or Sing-box engine, achieve VLESS-Vision camouflage, Shadowsocks-2022 high-strength encryption, and Hysteria 2 UDP brute-force penetration, supporting multi-protocol multiplexing on a single port.
+* **Ultimate Environment Self-healing Engine**: Built-in white-box level diagnostic mechanism. One-click release of deadlocked ports, precisely erase abandoned firewall rules that may lead to exposure, ensuring a clean and stable proxy environment.
+* **Physical-level Network Computing Power Release**: Deeply optimize Linux kernel parameters. One-click activation of the BBR congestion control algorithm, significantly increasing the TCP concurrent upper limit, squeezing every bit of network performance from the server.
+* **High-quality Speed Testing and Reputation Audit**: Integrated with `bench.sh` and `Check.Place`, comprehensively assess the physical performance of VPS and the fraud rating and purity of IP addresses.
+* **OTA Hot Update and Traceless Cleanup**: Supports lossless hot update of script source code and provides a "nuclear-level" uninstallation mode, thoroughly removing all node configurations and firewall traces, leaving no backdoors.
 
 ---
 <a name="-architecture-comparison"></a>
