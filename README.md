@@ -166,14 +166,16 @@ sb
 
 ## 💻 系统要求 / System Requirements
 
-* **OS**: Debian 10+, Ubuntu 20.04+, CentOS 8+, AlmaLinux, Rocky Linux, Alpine Linux (Full Support).
-* **Init System**: Systemd or OpenRC is strictly required for daemon persistence.
-* **Network**: Dual-stack IPv4 / IPv6 resolution fully supported.
+* **操作系统 / OS**: Debian 10+, Ubuntu 20.04+, CentOS 8+, AlmaLinux, Rocky Linux, Alpine Linux.
+* **初始化系统 / Init System**: 必须具备 **Systemd** 或 **OpenRC** 环境以支持守护进程 / **Systemd** or **OpenRC** is strictly required for daemon persistence.
+* **网络环境 / Network**: 完整支持 **IPv4 / IPv6** 双栈解析 / Full **IPv4 / IPv6** dual-stack resolution supported.
 
 ## 🤝 反馈与交流 / Feedback & Support
 
-If you encounter any issues or have suggestions, please submit them via:
-* [GitHub Issues](https://github.com/alariclin/aio-box/issues)
+如果您在使用过程中遇到任何问题或有改进建议，欢迎通过以下方式参与讨论：
+If you encounter any issues or have suggestions, please join the discussion via:
+
+* **[GitHub Issues](https://github.com/alariclin/aio-box/issues)**: 提交缺陷报告或新功能提议 / Submit bug reports or feature requests.
 
 ## 📄 许可证 / License
 
