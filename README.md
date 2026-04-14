@@ -14,7 +14,7 @@
 
 ## 📖 中文说明
 
-**Aio-box** 是一款注于 Linux 服务器网络环境配置、安全加固与路由优化的自动化运维环境。本项目旨在通过高保真的自动化脚本，解决异构网络协议栈在同一宿主机下的并发与冲突问题。内置系统参数极限调优与独创的“白盒自愈”机制，是网络安全研究、全栈技术测试及自动化 DevOps 管理的极佳脚手架。
+**Aio-box** 是一款专为 Linux 服务器设计的自动化网络加密隧道部署脚本。它集成了当前主流的网络安全代理协议（如 VLESS-Reality、Shadowsocks-2022、Hysteria 2 等），旨在帮助用户快速搭建安全、私密且高效的跨域数据传输环境，同时提供系统底层调优与防封锁自愈机制。
 
 > **⚠️ 合规与免责声明 (Disclaimer)**: 本项目定位为企业级网络架构测试、网络安全研究与个人隐私保护工具。严禁利用本脚本从事任何违反所在国家或地区法律法规的活动。使用者必须自行承担因不当使用而产生的一切直接或间接法律责任。
 ### 📑 目录
@@ -45,7 +45,6 @@
 | **资源占用** | 中等 (双进程常驻内存) | 极低 (单一进程极速调度) |
 | **协议分配** | Xray 独占 TCP；Hy2 独占 UDP | Sing-box 内部虚拟分发 |
 | **适用场景** | 追求绝对的吞吐量上限与极高并发 | 小内存机器 (如 256M/512M VPS) |
-
 ---
 <a name="-deploy-cn"></a>
 ### 🚀 快速部署
@@ -86,7 +85,7 @@ sb
 <a name="-english-description"></a>
 ## 🌐 Project Introduction
 
-**Aio-box** is an automated operations and maintenance environment dedicated to network environment configuration, security hardening, and routing optimization for Linux servers. This project aims to resolve concurrency and conflict issues of heterogeneous network protocol stacks on the same host machine through high-fidelity automation scripts.With built-in extreme system parameter tuning and an original "white-box self-healing" mechanism, it serves as an excellent scaffolding for cybersecurity research, full-stack technical testing, and automated DevOps management
+**Aio-box** It is an automated network encryption tunnel deployment script specifically designed for Linux servers. It integrates the current mainstream network security proxy protocols (such as VLESS-Reality, Shadowsocks-2022, Hysteria 2, etc.), aiming to help users quickly set up a secure, private and efficient cross-domain data transmission environment, while providing system-level optimization and anti-blockage self-healing mechanisms.
 
 > **⚠️ Compliance & Disclaimer**: This project is positioned as a tool for enterprise-level network architecture testing, cybersecurity research, and personal privacy protection. It is strictly prohibited to use this script for any activities that violate the laws and regulations of the country or region where you are located. Users must bear all direct and indirect legal responsibilities arising from improper use on their own.
 
