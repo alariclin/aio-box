@@ -182,6 +182,6 @@ If you encounter any issues or have suggestions, please join the discussion via:
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-本项目采用 **[Apache License 2.0](LICENSE)** 许可证进行授权。
+本项目采用的许可证授权是 **[Apache License 2.0](LICENSE)** 。
 
 This project is licensed under the **[Apache License 2.0](LICENSE)**.
