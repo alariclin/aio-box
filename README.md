@@ -45,7 +45,7 @@
 
 本控制台提供两种顶级的运行架构，以满足不同资源与网络环境的需求：
 
-| 特性维度 | 🚀 双核混编模式 (Xray-Hybrid) | ⚡ 单核全能模式 (Sing-box) |
+| 特性维度 | 双核混编模式 (Xray-Hybrid) | 单核全能模式 (Sing-box) |
 | :--- | :--- | :--- |
 | **核心引擎** | Xray-core + 官方 Hysteria 2 | 纯 Sing-box 核心 |
 | **设计哲学** | 极致隔离，物理级强强联手 | 极致轻量，聚合平台架构 |
@@ -124,7 +124,7 @@ sb
 
 The console provides two top-tier deployment architectures to meet different resource and network requirements:
 
-| Dimension | 🚀 Dual-Core Hybrid (Xray-Hybrid) | ⚡ Single-Core Omni (Sing-box) |
+| Dimension | Dual-Core Hybrid (Xray-Hybrid) | Single-Core Omni (Sing-box) |
 | :--- | :--- | :--- |
 | **Core Engines** | Xray-core + Official Hysteria 2 | Pure Sing-box Core |
 | **Philosophy** | Physical Isolation, Best of Both | Lightweight, Unified Platform |
