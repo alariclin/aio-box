@@ -61,9 +61,8 @@
 
 **全球高速通道 (推荐海外服务器使用):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh > aio.sh && sudo bash aio.sh
 ```
-
 **分发加速镜像 (中国大陆机器推荐):**
 ```bash
 curl -fsSL https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh | sudo bash
@@ -141,7 +140,7 @@ The console provides two top-tier deployment architectures to meet different res
 
 **Global High-Speed Channel (Recommended for Overseas Servers):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh > aio.sh && sudo bash aio.sh
 ```
 <a name="-management--operations"></a>
 #### 🛠️ Management
