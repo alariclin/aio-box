@@ -15,6 +15,9 @@ if [[ $EUID -ne 0 ]]; then
 fi
 sed -i '/acme.sh.env/d' ~/.bashrc >/dev/null 2>&1 || true
 
+# --- [0.1] 强制劫持物理键盘设备 (防御管道符死锁与 ^H 控制码乱码) ---
+exec < /dev/tty || true
+
 # --- [1] 统一生命周期初始化 (原子化时序) / Unified Environment Initialization ---
 init_system_environment() {
     if [[ -n $(find /etc -name "redhat-release" 2>/dev/null) ]] || grep </proc/version -q -i "centos"; then
@@ -325,6 +328,11 @@ if [[ -n "$SIZE_IP" && "$SIZE_IP" -gt 500000 && -n "$SIZE_SITE" && "$SIZE_SITE" 
         mv -f /dev/shm/geo_update/geosite.dat /usr/local/share/xray/geosite.dat
         if command -v systemctl >/dev/null 2>&1; then systemctl restart xray 2>/dev/null; else rc-service xray restart 2>/dev/null; fi
     fi
+    if [[ -d "/etc/sing-box" ]]; then
+        cp -f /usr/local/share/xray/geoip.dat /etc/sing-box/geoip.dat 2>/dev/null || mv -f /dev/shm/geo_update/geoip.dat /etc/sing-box/geoip.dat 2>/dev/null
+        cp -f /usr/local/share/xray/geosite.dat /etc/sing-box/geosite.dat 2>/dev/null || mv -f /dev/shm/geo_update/geosite.dat /etc/sing-box/geosite.dat 2>/dev/null
+        if command -v systemctl >/dev/null 2>&1; then systemctl restart sing-box 2>/dev/null; else rc-service sing-box restart 2>/dev/null; fi
+    fi
 fi
 rm -rf /dev/shm/geo_update
 EOF
@@ -411,8 +419,20 @@ pre_install_setup() {
     local CORE=$1
     local MODE=$2
     
-    local DEF_V_SNI="dl.google.com"
-    local DEF_H_SNI="dl.google.com"
+    # 动态探测并匹配最佳 ASN SNI
+    local ISP_ORG=$(curl -s ipinfo.io/org 2>/dev/null)
+    if [[ "$ISP_ORG" == *"Google"* ]]; then
+        local AUTO_SNI="dl.google.com"
+    elif [[ "$ISP_ORG" == *"Amazon"* ]]; then
+        local AUTO_SNI="s3.us-west-2.amazonaws.com"
+    elif [[ "$ISP_ORG" == *"Oracle"* ]]; then
+        local AUTO_SNI="cloud.oracle.com"
+    else
+        local AUTO_SNI="www.microsoft.com"
+    fi
+
+    local DEF_V_SNI="$AUTO_SNI"
+    local DEF_H_SNI="$AUTO_SNI"
     local DEF_V_PORT=443
     local DEF_H_PORT=42588
     local DEF_S_PORT=2053
@@ -420,23 +440,23 @@ pre_install_setup() {
     echo -e "${BOLD}🚀 参数构造向导 / Pre-deployment Wizard [Engine: $CORE | Mode: $MODE]${NC}"
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     if [[ "$MODE" == *"VLESS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        read -p "   [VLESS] 请输入伪装 SNI / Enter camouflage SNI (回车默认: $DEF_V_SNI): " INPUT_V_SNI
+        read -ep "   [VLESS] 请输入伪装 SNI / Enter camouflage SNI (回车默认: $DEF_V_SNI): " INPUT_V_SNI
         VLESS_SNI=${INPUT_V_SNI:-$DEF_V_SNI}
-        read -p "   [VLESS] 请输入监听端口 / Enter listening port (回车默认: $DEF_V_PORT): " INPUT_V_PORT
+        read -ep "   [VLESS] 请输入监听端口 / Enter listening port (回车默认: $DEF_V_PORT): " INPUT_V_PORT
         VLESS_PORT=${INPUT_V_PORT:-$DEF_V_PORT}
     fi
     if [[ "$MODE" == *"HY2"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        read -p "   [HY2] 请输入伪装 SNI (需与VLESS一致) (回车默认: $DEF_H_SNI): " INPUT_H_SNI
+        read -ep "   [HY2] 请输入伪装 SNI (需与VLESS一致) (回车默认: $DEF_H_SNI): " INPUT_H_SNI
         HY2_SNI=${INPUT_H_SNI:-$DEF_H_SNI}
-        read -p "   [HY2] 请输入主监听端口 (绝对禁止填443) (回车默认: $DEF_H_PORT): " INPUT_H_PORT
+        read -ep "   [HY2] 请输入主监听端口 (绝对禁止填443) (回车默认: $DEF_H_PORT): " INPUT_H_PORT
         HY2_PORT=${INPUT_H_PORT:-$DEF_H_PORT}
-        read -p "   [HY2] 请输入您本地宽带【下行】速率(Mbps, 例如 300) (回车默认: 1000): " INPUT_H_DOWN
+        read -ep "   [HY2] 请输入您本地宽带【下行】速率(Mbps, 例如 300) (回车默认: 1000): " INPUT_H_DOWN
         HY2_DOWN=${INPUT_H_DOWN:-1000}
-        read -p "   [HY2] 请输入您本地宽带【上行】速率(Mbps, 例如 50) (回车默认: 100): " INPUT_H_UP
+        read -ep "   [HY2] 请输入您本地宽带【上行】速率(Mbps, 例如 50) (回车默认: 100): " INPUT_H_UP
         HY2_UP=${INPUT_H_UP:-100}
     fi
     if [[ "$MODE" == *"SS"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        read -p "   [SS] 请输入备用监听端口 / Enter backup port (回车默认: $DEF_S_PORT): " INPUT_S_PORT
+        read -ep "   [SS] 请输入备用监听端口 / Enter backup port (回车默认: $DEF_S_PORT): " INPUT_S_PORT
         SS_PORT=${INPUT_S_PORT:-$DEF_S_PORT}
     fi
     echo -e "${CYAN}======================================================================${NC}\n"
@@ -877,50 +897,50 @@ disable_traffic_monitor() {
 traffic_management_menu() {
     clear
     echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${BOLD}${GREEN} 每月流量管控限制 / Monthly Traffic Management${NC}"
+    echo -e "${BOLD}${GREEN} 每月流量管控限制 / Monthly Traffic Management Limit${NC}"
     echo -e "${CYAN}======================================================================${NC}"
     
     local INTERFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -n 1)
     [[ -z "$INTERFACE" ]] && INTERFACE=$(ip link | awk -F: '$0 !~ "lo|vir|wl|^[^0-9]"{print $2;getline}' | head -n 1 | tr -d ' ')
     
-    echo -e "${YELLOW}[网卡 ${INTERFACE} 当前月流量统计 / Current Month Traffic]${NC}"
+    echo -e "${YELLOW}[网卡 (Interface) ${INTERFACE} 当前月流量统计 / Current Month Traffic Statistics]${NC}"
     if command -v vnstat >/dev/null 2>&1; then
         local USED_LINE=$(vnstat -i "$INTERFACE" -m 2>/dev/null | grep "$(date +'%Y-%m')")
-        if [[ -n "$USED_LINE" ]]; then vnstat -i "$INTERFACE" -m 2>/dev/null | head -n 6 | grep -v '^$'; else echo -e "${YELLOW}暂无本月统计数据，vnstat 正在收集中...${NC}"; fi
+        if [[ -n "$USED_LINE" ]]; then vnstat -i "$INTERFACE" -m 2>/dev/null | head -n 6 | grep -v '^$'; else echo -e "${YELLOW}暂无本月统计数据，vnstat 正在收集中... / No data for this month yet, vnstat is collecting...${NC}"; fi
     else
-        echo -e "${RED}[!] 未检测到 vnstat，请确保环境已初始化。${NC}"
+        echo -e "${RED}[!] 未检测到 vnstat，请确保环境已初始化。 / vnstat not detected, ensure environment is initialized.${NC}"
     fi
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     
     source /etc/ddr/.env 2>/dev/null
     if [[ -n "$TRAFFIC_LIMIT_GB" ]]; then
-        echo -e "当前设定的每月流量上限: ${GREEN}${TRAFFIC_LIMIT_GB} GB${NC}\n管控状态: ${GREEN}监控中 (每分钟自动检测一次)${NC}"
+        echo -e "当前设定的每月流量上限 / Current Monthly Traffic Limit: ${GREEN}${TRAFFIC_LIMIT_GB} GB${NC}\n管控状态 / Management Status: ${GREEN}监控中 (每分钟自动检测一次) / Active (Monitored every minute)${NC}"
     else
-        echo -e "当前设定的每月流量上限: ${RED}未开启 (Unlimited)${NC}"
+        echo -e "当前设定的每月流量上限 / Current Monthly Traffic Limit: ${RED}未开启 (Unlimited) / Disabled (Unlimited)${NC}"
     fi
     echo -e "${CYAN}======================================================================${NC}"
-    echo -e "${YELLOW}1. 设定/修改每月流量上限 (Set/Modify Limit)${NC}\n${YELLOW}2. 解除流量限制 (Disable Limit)${NC}\n${GREEN}0. 返回主菜单 / Return${NC}"
+    echo -e "${YELLOW}1. 设定/修改每月流量上限 (Set/Modify Monthly Traffic Limit)${NC}\n${YELLOW}2. 解除流量限制 (Disable Traffic Limit)${NC}\n${GREEN}0. 返回主菜单 / Return to Main Menu${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    read -p " 请选择 / Select [0-2]: " tr_choice
+    read -ep " 请选择 / Select [0-2]: " tr_choice
     
     case $tr_choice in
         1)
-            read -p " 请输入每月总流量上限(GB)，纯数字: " limit_gb
+            read -ep " 请输入每月总流量上限(GB)，纯数字 / Enter monthly traffic limit (GB), numbers only: " limit_gb
             if [[ "$limit_gb" =~ ^[0-9]+$ ]]; then
                 sed -i '/TRAFFIC_LIMIT_GB/d' /etc/ddr/.env 2>/dev/null
                 echo "TRAFFIC_LIMIT_GB=\"$limit_gb\"" >> /etc/ddr/.env
                 setup_traffic_monitor
-                echo -e "${GREEN}✔ 流量限制已设定为 ${limit_gb} GB！${NC}\n${YELLOW}[提示] 若节点曾因超量被系统阻断，调高限额后请在主菜单重新部署一次以唤醒服务。${NC}"
+                echo -e "${GREEN}✔ 流量限制已设定为 / Traffic limit set to ${limit_gb} GB！${NC}\n${YELLOW}[提示] 若节点曾因超量被系统阻断，调高限额后请在主菜单重新部署一次以唤醒服务。 / [Tip] If node was blocked due to overage, redeploy from main menu to wake up services.${NC}"
             else
-                echo -e "${RED}[!] 输入无效，请输入纯数字。${NC}"
+                echo -e "${RED}[!] 输入无效，请输入纯数字。 / Invalid input, please enter numbers only.${NC}"
             fi
-            read -p "按回车返回..."
+            read -ep "按回车返回 / Press Enter to return..."
             ;;
         2)
             sed -i '/TRAFFIC_LIMIT_GB/d' /etc/ddr/.env 2>/dev/null
             disable_traffic_monitor
-            echo -e "${GREEN}✔ 流量限制已成功解除。${NC}"
-            read -p "按回车返回..."
+            echo -e "${GREEN}✔ 流量限制已成功解除。 / Traffic limit successfully disabled.${NC}"
+            read -ep "按回车返回 / Press Enter to return..."
             ;;
         *) return 0 ;;
     esac
@@ -1009,7 +1029,7 @@ EOF
     fi
     echo -e "${BLUE}----------------------------------------------------------------------${NC}"
     [[ "$CALLER" == "deploy" ]] && echo -e "${GREEN}✔ 服务池编译部署完毕！可随时键入 13 调出此面板。 / Initialization Phase Complete!${NC}"
-    read -p "按回车安全退出交互空间并返回总台 / Press Enter to return..."
+    read -ep "按回车安全退出交互空间并返回总台 / Press Enter to return..."
 }
 show_usage() {
     clear
@@ -1039,7 +1059,7 @@ show_usage() {
     echo -e " 17. 环境自愈 (Self-Healing): 自动扫描进程死锁、清除脏路由、释放端口占用，恢复系统纯净。\n (Auto-scans process deadlocks, clears dirty routes, and releases ports to restore system purity.)"
     echo -e " 18. 流量管控 (Traffic Limit): 基于 vnstat 监控流量，支持到达月度阈值后自动熔断服务以防超支。\n (Monitors traffic via vnstat; supports auto-shutdown after reaching monthly thresholds to prevent overage.)"
     echo -e "${CYAN}======================================================================${NC}"
-    read -p " 阅读完毕，按回车返回主菜单 / Press Enter to return to main menu..."
+    read -ep " 阅读完毕，按回车返回主菜单 / Press Enter to return to main menu..."
 }
 update_script() {
     clear; echo -e "${CYAN}======================================================================${NC}"
@@ -1061,7 +1081,7 @@ update_script() {
     else
         echo -e "${RED}[!] 异常拦截: TCP/TLS 链路断层，无法抵达更新服务器。 / Remote host unreachable.${NC}"
     fi
-    read -p "按回车返回总台 / Press Enter to return..."
+    read -ep "按回车返回总台 / Press Enter to return..."
 }
 force_update_geo() {
     clear
@@ -1071,8 +1091,8 @@ force_update_geo() {
     echo -e "${YELLOW}[*] 正在拉取 Loyalsoldier 增强版 Geo 资源并执行校验... / Fetching Geo Data...${NC}"
     setup_geo_cron
     bash /etc/ddr/geo_update.sh
-    echo -e "${GREEN}✔ Geo 资源更新与校验成功，已覆盖核心文件并完成热重载！${NC}\n${GREEN}✔ 定时任务已同步下发：每周一夜里 3:00 自动静默执行闭环更新。${NC}"
-    read -p "按回车返回..."
+    echo -e "${GREEN}✔ Geo 资源更新与校验成功，已覆盖核心文件并完成热重载！${NC}\n${GREEN}✔ 定时任务已同步下发：每周一夜里 3:00 自动静默执行闭闭环更新。${NC}"
+    read -ep "按回车返回..."
 }
 ota_and_geo_menu() {
     clear
@@ -1081,7 +1101,7 @@ ota_and_geo_menu() {
     echo -e "${CYAN}======================================================================${NC}"
     echo -e "${YELLOW}1. 升级 Aio-box 核心脚本 (OTA Update Script)${NC}\n${YELLOW}2. 立即拉取并更新 Loyalsoldier Geo 资源 (Update Geo Data & Set Cron)${NC}\n${GREEN}0. 返回主菜单 / Return${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    read -p " 请选择 / Select [0-2]: " ota_choice
+    read -ep " 请选择 / Select [0-2]: " ota_choice
     case $ota_choice in
         1) update_script ;;
         2) force_update_geo ;;
@@ -1095,7 +1115,7 @@ clean_uninstall_menu() {
     echo -e "${CYAN}======================================================================${NC}"
     echo -e "${YELLOW}1. 完全物理清场/Complete physical decontamination (销毁节点、配置表、防火墙映射与全局快速访问别名)${NC}\n${YELLOW}2. 保留脚本与清场/Maintain the script and clear the area (销毁节点配置等，但留存控制台与环境供随时重构)${NC}\n${GREEN}0. 取消并返回 / Abort and Return${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    read -p " 请谨慎输入执行代码 / Execution Code [0-2]: " un_choice
+    read -ep " 请谨慎输入执行代码 / Execution Code [0-2]: " un_choice
     case $un_choice in
         1) do_cleanup "full" ;;
         2) do_cleanup "keep" ;;
@@ -1127,7 +1147,7 @@ do_cleanup() {
     else
         rm -f /etc/ddr/.env
         echo -e "${GREEN}✔ 代理系统已销毁！底层框架与唤醒口令 'sb' 予以保留。 / App stack uninstalled.${NC}"
-        read -p "按回车返回主控 / Press Enter to return..."
+        read -ep "按回车返回主控 / Press Enter to return..."
     fi
 }
 check_virgin_state() {
@@ -1138,10 +1158,10 @@ check_virgin_state() {
     echo -e "\033[1;33m========================================================================================\033[0m\n"
     echo -e "${BOLD}${RED}【高危操作警告 / DANGER】${NC}"
     echo -e "${YELLOW}此操作将无差别猎杀所有代理进程、抹除相关防火墙规则并物理粉碎节点配置文件！${NC}"
-    read -p " 确定要执行环境深度自愈吗？(输入 y 确认，其他任意键安全取消): " confirm_virgin
+    read -ep " 确定要执行环境深度自愈吗？(输入 y 确认，其他任意键安全取消): " confirm_virgin
     case "$confirm_virgin" in
         [yY]|[yY][eE][sS]) echo -e "\n${GREEN}身份验证通过，开始物理级清场...${NC}\n" ;;
-        *) echo -e "\n${GREEN}✔ 操作已安全取消，未对系统造成任何更改。${NC}"; read -p " 按回车返回主控制台 / Press Enter to return..."; return 0 ;;
+        *) echo -e "\n${GREEN}✔ 操作已安全取消，未对系统造成任何更改。${NC}"; read -ep " 按回车返回主控制台 / Press Enter to return..."; return 0 ;;
     esac
     echo -e "\033[1;36m[1/5] 执行内存地址与高优端口锁死检测 / Scanning memory address binding...\033[0m"
     local BAD_PROC=$(ps aux | grep -E 'xray|sing-box|hysteria' | grep -v grep 2>/dev/null)
@@ -1194,7 +1214,7 @@ check_virgin_state() {
     fi
     echo -e "\n\033[1;33m================================================================\033[0m"
     echo -e "${GREEN}全链路自愈引擎闭环结束。部署环境现达到绝对真空洁净级别。 / Self-Healing Cycle Complete.${NC}"
-    read -p "按回车返回主控制台 / Press Enter to return..."
+    read -ep "按回车返回主控制台 / Press Enter to return..."
 }
 
 # === 功能 12 核心重构: 校验并追杀式注入 1.3.4 功能 / Tune VPS Enhancement ===
@@ -1277,7 +1297,7 @@ EOF
         echo -e "${GREEN}   ✔ 环形防御矩阵状态: 已激活${NC}"
     fi
 
-    # 检测 4. Geosite 黑名单注入 (屏蔽了会崩溃的 malware，仅为 Xray 保留 ads 规则)
+    # 检测 4. Geosite 黑名单注入
     if [[ -f /usr/local/etc/xray/config.json ]] && ! grep -q "category-ads-all" /usr/local/etc/xray/config.json; then
         if command -v jq >/dev/null 2>&1; then
             jq '.routing.rules += [{"type": "field", "domain": ["geosite:category-ads-all"], "outboundTag": "block"}] | .log = {"loglevel": "warning", "access": "/var/log/aio-box-xray.log"}' /usr/local/etc/xray/config.json > /tmp/xp.json && mv /tmp/xp.json /usr/local/etc/xray/config.json
@@ -1285,9 +1305,16 @@ EOF
             echo -e "${GREEN}   ✔ Xray 路由拦截黑名单与日志持久化已热重载！${NC}"
         fi
     fi
+    if [[ -f /etc/sing-box/config.json ]] && ! grep -q "category-ads-all" /etc/sing-box/config.json; then
+        if command -v jq >/dev/null 2>&1; then
+            jq '.route.rules += [{"geosite": ["category-ads-all"], "outbound": "block"}] | .log = {"level": "warn", "output": "/var/log/aio-box-singbox.log"}' /etc/sing-box/config.json > /tmp/sp.json && mv /tmp/sp.json /etc/sing-box/config.json
+            service_manager start sing-box 2>/dev/null
+            echo -e "${GREEN}   ✔ Sing-box 路由拦截黑名单与日志持久化已热重载！${NC}"
+        fi
+    fi
 
     echo -e "\n${GREEN}✔ 内核 BBR 配置块及最大并发映射文件已成功熔接至系统底层！ / Subsystem Kernel Parameters Updated.${NC}"
-    read -p "按回车安全退出 / Press Enter to return..."
+    read -ep "按回车安全退出 / Press Enter to return..."
 }
 
 vps_benchmark_menu() {
@@ -1297,10 +1324,10 @@ vps_benchmark_menu() {
     echo -e "${CYAN}======================================================================${NC}"
     echo -e "${YELLOW}1. 本机配置和测速 (bench.sh) / System Info & Speedtest${NC}\n${YELLOW}2. IP纯净度和测速 (Check.Place) / IP Quality & Speed${NC}\n${GREEN}0. 返回主菜单 / Return to Main Menu${NC}"
     echo -e "${CYAN}======================================================================${NC}"
-    read -p " 请选择 / Please select [0-2]: " bench_choice
+    read -ep " 请选择 / Please select [0-2]: " bench_choice
     case $bench_choice in
-        1) clear; echo -e "${GREEN}正在运行 bench.sh... / Running bench.sh...${NC}"; wget -qO- https://bench.sh | bash; read -p "按回车返回主菜单 / Press Enter to return..." ;;
-        2) clear; echo -e "${GREEN}正在运行 Check.Place... / Running Check.Place...${NC}"; bash <(curl -Ls https://Check.Place) -I; read -p "按回车返回主菜单 / Press Enter to return..." ;;
+        1) clear; echo -e "${GREEN}正在运行 bench.sh... / Running bench.sh...${NC}"; wget -qO- https://bench.sh | bash; read -ep "按回车返回主菜单 / Press Enter to return..." ;;
+        2) clear; echo -e "${GREEN}正在运行 Check.Place... / Running Check.Place...${NC}"; bash <(curl -Ls https://Check.Place) -I; read -ep "按回车返回主菜单 / Press Enter to return..." ;;
         0|*) return 0 ;;
     esac
 }
@@ -1341,7 +1368,7 @@ while true; do
     echo -e " ${GREEN}18.${NC} 每月流量管控限制 / Monthly Traffic Management Limit"
     echo -e " ${GREEN}0.${NC}  退出脚本 / Exit Script"
     echo -e "${BLUE}======================================================================${NC}"
-    read -p " 请求下发执行代号 / Request input command: " choice
+    read -ep " 请求下发执行代号 / Request input command: " choice
     
     case $choice in
         1) deploy_xray "VLESS" ;;
