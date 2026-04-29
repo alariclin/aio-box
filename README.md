@@ -65,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh >
 ```
 **分发加速镜像 (中国大陆机器推荐):**
 ```bash
-curl -fsSL https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh | sudo bash
+curl -fsSL https://ghp.ci/https://raw.githubusercontent.com/alariclin/aio-box/main/install.sh > aio.sh && sudo bash aio.sh
 ```
 ---
 <a name="-ops-cn"></a>
