@@ -416,8 +416,8 @@ pre_install_setup() {
     local CORE=$1
     local MODE=$2
     
-    local DEF_V_SNI="www.microsoft.com"
-    local DEF_H_SNI="images.apple.com"
+    local DEF_V_SNI="dl.google.com"
+    local DEF_H_SNI="dl.google.com"
     local DEF_V_PORT=443
     local DEF_H_PORT=42588
     local DEF_S_PORT=2053
@@ -431,9 +431,9 @@ pre_install_setup() {
         VLESS_PORT=${INPUT_V_PORT:-$DEF_V_PORT}
     fi
     if [[ "$MODE" == *"HY2"* ]] || [[ "$MODE" == *"ALL"* ]]; then
-        read -ep "   [HY2] 请输入伪装 SNI / Enter camouflage SNI (回车默认: $DEF_H_SNI): " INPUT_H_SNI
+        read -ep "   [HY2] 请输入伪装 SNI (需与VLESS一致) (回车默认: $DEF_H_SNI): " INPUT_H_SNI
         HY2_SNI=${INPUT_H_SNI:-$DEF_H_SNI}
-        read -ep "   [HY2] 请输入监听端口 (强制建议非 443 端口) (回车默认: $DEF_H_PORT): " INPUT_H_PORT
+        read -ep "   [HY2] 请输入主监听端口 (绝对禁止填443) (回车默认: $DEF_H_PORT): " INPUT_H_PORT
         HY2_PORT=${INPUT_H_PORT:-$DEF_H_PORT}
         read -ep "   [HY2] 请输入您本地宽带【下行】速率(Mbps, 例如 300) (回车默认: 1000): " INPUT_H_DOWN
         HY2_DOWN=${INPUT_H_DOWN:-1000}
@@ -609,7 +609,7 @@ EOF
         "VLESS_SS"|"ALL") INBOUNDS="[$JSON_VLESS, $JSON_SS]" ;;
     esac
     
-    # === 功能 3 与 4: 注入环形日志路径与 Geosite 黑洞出站规则 ===
+    # === 功能 3 与 4: 注入环形日志路径与 Geosite 黑洞出站规则 (已修复 Xray 专属路由语法) ===
     cat > /usr/local/etc/xray/config.json << EOF
 {
   "log": { "loglevel": "warning", "access": "/var/log/aio-box-xray.log" },
@@ -617,7 +617,7 @@ EOF
     "domainStrategy": "IPIfNonMatch",
     "rules": [
       { "type": "field", "protocol": ["bittorrent"], "outboundTag": "block" },
-      { "type": "field", "geosite": ["category-ads-all", "malware"], "outboundTag": "block" }
+      { "type": "field", "domain": ["geosite:category-ads-all", "geosite:malware"], "outboundTag": "block" }
     ]
   },
   "inbounds": ${INBOUNDS},
@@ -737,7 +737,7 @@ EOF
         "ALL") INBOUNDS="[$JSON_VLESS, $JSON_HY2, $JSON_SS]" ;;
     esac
     
-    # === 功能 3 与 4: 注入环形日志路径与 Geosite 黑洞出站规则 ===
+    # === 功能 3 与 4: 注入环形日志路径与 Geosite 黑洞出站规则 (Sing-box 语法) ===
     cat > /etc/sing-box/config.json << EOF
 {
   "log": { "level": "warn", "output": "/var/log/aio-box-singbox.log" },
@@ -1280,10 +1280,10 @@ EOF
         echo -e "${GREEN}   ✔ 环形防御矩阵状态: 已激活${NC}"
     fi
 
-    # 检测 4. Geosite 黑名单注入
+    # 检测 4. Geosite 黑名单注入 (已应用 Xray 标准路由修复)
     if [[ -f /usr/local/etc/xray/config.json ]] && ! grep -q "category-ads-all" /usr/local/etc/xray/config.json; then
         if command -v jq >/dev/null 2>&1; then
-            jq '.routing.rules += [{"type": "field", "geosite": ["category-ads-all", "malware"], "outboundTag": "block"}] | .log = {"loglevel": "warning", "access": "/var/log/aio-box-xray.log"}' /usr/local/etc/xray/config.json > /tmp/xp.json && mv /tmp/xp.json /usr/local/etc/xray/config.json
+            jq '.routing.rules += [{"type": "field", "domain": ["geosite:category-ads-all", "geosite:malware"], "outboundTag": "block"}] | .log = {"loglevel": "warning", "access": "/var/log/aio-box-xray.log"}' /usr/local/etc/xray/config.json > /tmp/xp.json && mv /tmp/xp.json /usr/local/etc/xray/config.json
             service_manager start xray 2>/dev/null
             echo -e "${GREEN}   ✔ Xray 路由拦截黑名单与日志持久化已热重载！${NC}"
         fi
