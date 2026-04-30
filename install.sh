@@ -422,13 +422,13 @@ pre_install_setup() {
     # 动态探测并匹配最佳 ASN SNI
     local ISP_ORG=$(curl -s ipinfo.io/org 2>/dev/null)
     if [[ "$ISP_ORG" == *"Google"* ]]; then
-        local AUTO_SNI="dl.google.com"
+        local AUTO_SNI="www.samsung.com"
     elif [[ "$ISP_ORG" == *"Amazon"* ]]; then
-        local AUTO_SNI="s3.us-west-2.amazonaws.com"
+        local AUTO_SNI="www.samsung.com"
     elif [[ "$ISP_ORG" == *"Oracle"* ]]; then
-        local AUTO_SNI="cloud.oracle.com"
+        local AUTO_SNI="www.samsung.com"
     else
-        local AUTO_SNI="www.microsoft.com"
+        local AUTO_SNI="www.samsung.com"
     fi
 
     local DEF_V_SNI="$AUTO_SNI"
